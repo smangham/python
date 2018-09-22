@@ -11,9 +11,10 @@ Radiative transfer and ionisation code
 --------------------------------------
 TODO: Describe python, link to papers as `Link name <http://www.python.org/>`_.
 
-============
+=============
 Blah blah blah
-============
+=============
+-----------
 Input files
 -----------
 *python* uses a unique ``.pf`` input file format. An input file consists of a system type,
@@ -25,11 +26,13 @@ TODO: EXPAND
 TODO: WRITE A LIST OF WHAT THE MANDATORY ENTRIES ARE (once all the names have settled down...)
 
 
+-------------
 Documentation
 -------------
 For more information on how this page was generated and how to create documentation for *python*,
 look at the page for :doc:`documentation on the documentation <rst/meta>`.
 
+-------
 Authors
 -------
 The authors of the *python* code and their institutions are:

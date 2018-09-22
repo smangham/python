@@ -54,23 +54,6 @@ distance in a cell.
 **File:** diag.c
 
 
-Diag.ispymode
-=============
-creates a file root.ispy which contains information about cell
-statistics for a given set of cells. Very similar to 
-save_cell_statistics. 
-
-**Type:** Int
-
-**Unit:** None
-
-**Parent(s):**
-  parameter_: Extra_diagnostics
-
-
-**File:** diag.c
-
-
 Diag.keep_ioncycle_windsaves
 ============================
 Decide whether or not to keep a copy of the windsave file after
