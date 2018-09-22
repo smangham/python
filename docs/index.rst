@@ -11,9 +11,9 @@ Radiative transfer and ionisation code
 --------------------------------------
 TODO: Describe python, link to papers as `Link name <http://www.python.org/>`_.
 
-=============
+==============
 Blah blah blah
-=============
+==============
 -----------
 Input files
 -----------
