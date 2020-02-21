@@ -1,52 +1,19 @@
-System_type(0=star,1=binary,2=agn,3=previous)   2
 
-### Parameters for the Central Object
-Central_object.mass(msol)                  7
-Central_object.radius(cm)                  7e+08
-
-### Parameters for the Disk (if there is one)
-Disk.type(0=no.disk,1=standard.flat.disk,2=vertically.extended.disk)   1
-Disk.radiation(y=1)                        0
-Disk.temperature.profile(0=Shakura-Sunyaev;1=readin,2=yso)   0
-Disk.mdot(msol/yr)                            1e-9
-Disk.radmax(cm)                            1.0e+12
-
-### Parameters for BL or AGN
-QSO_BH_radiation(y=1)                      1
-Rad_type_for_agn(0=bb,1=models,3=power_law,4=cloudy_table,5=bremsstrahlung)_to_make_wind   5
-lum_agn(ergs/s)                            1.7698e37
-agn_bremsstrahlung_temp(K)                 5.6e7
-agn_bremsstrahlung_alpha                   0.0
-geometry_for_pl_source(0=sphere,1=lamp_post)   0
-
-### Parameters descibing the various winds or coronae in the system
-Wind_radiation(y=1)                        0
-Number.of.wind.components                  1
-Wind_type(0=SV,1=Star,3=Hydro,4=corona,5=knigge,6=homologous,7=yso,9=shell,10=imported)   3
-Coord.system(0=spherical,1=cylindrical,2=spherical_polar,3=cyl_var)   1
-Wind.dim.in.x_or_r.direction               30
-Wind.dim.in.z_or_theta.direction           30
-photons_per_cycle                          100000
+### Parameters associated with photon number, cycles,ionization and radiative transfer options
+Photons_per_cycle                          100000
 Ionization_cycles                          3
-spectrum_cycles                            0
-Wind_ionization(0=on.the.spot,1=LTE(tr),2=fixed,3=recalc_bb,4=LTE(t_e),6=pairwise_bb,7=pairwise_pow,8=matrix_bb,9=matrix_pow)   9
-Line_transfer(0=pure.abs,1=pure.scat,2=sing.scat,3=escape.prob,6=macro_atoms,7=macro_atoms+aniso.scattering)   3
-Atomic_data                                data/standard80
-Surface.reflection.or.absorption(0=no.rerad,1=high.albedo,2=thermalized.rerad)   1
-Thermal_balance_options(0=everything.on,1=no.adiabatic)   1
-
-### Parameters for Domain 0
-wind.radmax(cm)                            1e+11
-wind.t.init                                40000
-hydro_file                                 hdf000002nsh_dw33.zeu
-Hydro_thetamax(degrees:negative_means_no_maximum)   -1
-filling_factor(1=smooth,<1=clumped)        1
+Spectrum_cycles                            3
+Wind.ionization(on.the.spot,ML93,LTE_tr,LTE_te,fixed,matrix_bb,matrix_pow)           matrix_pow
+Line_transfer(pure_abs,pure_scat,sing_scat,escape_prob,thermal_trapping,macro_atoms,macro_atoms_thermal_trapping)          escape_prob
+Wind.radiation(yes,no)                           no
+Surface.reflection.or.absorption(reflect,absorb,thermalized.rerad)              reflect
+Wind_heating.extra_processes(none,adiabatic,nonthermal,both)                 none
 
 ### Parameters for Reverberation Modeling (if needed)
-reverb.type(0=off,1=photon,2=wind,3=matom)   0
+Reverb.type(none,photon,wind,matom)                 none
 
 ### Other parameters
-Photon.sampling.approach(0=T,1=(f1,f2),2=cv,3=yso,4=user_defined,5=cloudy_test,6=wide,7=AGN,8=logarithmic)   8
-Num.of.frequency.bands                     10
-Lowest_energy_to_be_considered(eV)         1.03333
-Highest_energy_to_be_considered(eV)        50000
+Photon_sampling.approach(T_star,cv,yso,AGN,min_max_freq,user_bands,cloudy_test,wide,logarithmic)          logarithmic
+Photon_sampling.nbands                     10
+Photon_sampling.low_energy_limit(eV)       1.03333
+Photon_sampling.high_energy_limit(eV)      50000

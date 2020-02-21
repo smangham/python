@@ -1,0 +1,13 @@
+name: Reverb.matom_lines
+description: |
+  Number of macro-atom lines to track paths for individually. This many
+  reverb.matom_line entries are required, and the line associated with each has
+  the path of photons deexciting into it recorded in its own array. Note: This
+  doesn't give rise to any noticable differences to the pure wind mode in most
+  simulations.
+type: Integer
+values: Greater than or equal to 0
+parent:
+  Reverb.type: matom
+  Line_transfer: [macro_atoms, macro_atoms_thermal_trapping]
+file: setup_reverb.c

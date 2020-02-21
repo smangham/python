@@ -1,0 +1,9 @@
+name: Homologous.density_exponent
+description: |
+  The power law exponent which defines the decline in density of
+  a homologous flow as a function of radious.
+type: Double
+values: Greater than 0 for a density that declines with radius
+parent:
+  Wind.type: homologous
+file: homologous.c

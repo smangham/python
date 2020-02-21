@@ -38,17 +38,15 @@
  *
  ***********************************************************/
 
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+
 #include "log.h"
 #include "atomic.h"
 #include "python.h"
 
 #define EPS 1.e-10
-
-
 
 /* A basis is defined such that if x is a 3 vector as expressed an unprimed cartesian coordinate
    frame, and if y is the same vector in some rotated frame, then

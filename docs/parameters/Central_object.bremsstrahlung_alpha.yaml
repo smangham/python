@@ -1,0 +1,9 @@
+name: Central_object.bremsstrahlung_alpha
+description: |
+  The frequency exponent 𝛼 in bremstrahlung SED of the form
+  $L_\nu=\nu^{\alpha}e^{-h\nu/kT}$
+type: Double
+values: Any - sign is not assumed so use negative if you want negative
+parent:
+  Central_object.rad_type_to_make_wind: [brems]
+file: setup_star_bh.c

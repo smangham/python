@@ -1,0 +1,12 @@
+name: Central_object.power_law_cutoff
+description: |
+  Adds a low-frequency cutoff to the power law spectrum.
+  Whilst this is required for power-law emission modes,
+  it's set globally and also used in `cloudy` broken-power-law emission modes!
+type: Double
+unit: Hz
+values: Greater than or equal to 0
+parent:
+  Central_object.rad_type_to_make_wind: [power]
+file: setup_star_bh.c
+advanced: true

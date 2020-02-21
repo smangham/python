@@ -12,7 +12,6 @@
  *
  ***********************************************************/
 
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -70,13 +69,13 @@ compute_zeta (temp, nion, mode)
 
 #define MIN_FUDGE  1.e-10
 #define MAX_FUDGE  10.
-#define TMIN    2000.  /* Thia TMIN is specific to CK's ground fraction tables */
+#define TMIN_ZETA    2000.      /* This minimum temperature  TMIN_ZETA is specific to CK's ground fraction tables */
 
-  zeta = 0.0;                   /* NSH 130605 to remove o3 compile error */
+  zeta = 0.0;
 
 
   /* now get the right place in the ground_frac tables  CK */
-  dummy = temp / TMIN - 1.;
+  dummy = temp / TMIN_ZETA - 1.;
   ilow = dummy;                 /* have now truncated to integer below */
   ihi = ilow + 1;               /*these are the indeces bracketing the true value */
   interpfrac = (dummy - ilow);  /*this is the interpolation fraction */
@@ -139,7 +138,7 @@ compute_zeta (temp, nion, mode)
   else
   {
     Error ("Compute zeta: Unkown mode %i \n", mode);
-    exit(0);
+    Exit (0);
   }
 
 

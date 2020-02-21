@@ -1,0 +1,10 @@
+name: Reverb.dump_cells
+description: |
+  Number of cells to dump. When dumping the path distribution info for a range
+  of cells, this specifies the number of lines of :ref:`Reverb.dump_cell` that will be
+  provided.
+type: Integer
+values: Greater than or equal to 0
+parent:
+  Reverb.visualisation: [wind, matom]
+file: setup_reverb.c

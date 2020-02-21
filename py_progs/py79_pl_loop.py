@@ -73,7 +73,7 @@ if __name__ == "__main__":		# allows one to run from command line without runnin
 			if len(data)!=2:
 				print ("Improperly structured param file - each line should be a param name and value seperated by a space")
 			else:
-				print data[0],data[1]
+				print(data[0],data[1])
 				if data[0]=='alpha': 
 					alpha=data[1]
 				if data[0]=='nprocs': 
@@ -131,8 +131,8 @@ if __name__ == "__main__":		# allows one to run from command line without runnin
 
 	for i in range(npoints):
 		lum=10**((float(i)+np.log10(lum_start)*10.0)/10.0)   #The 210 means the first luminosity is 21.0
-		print 'Starting cycle '+str(i+1)+' of '+str(npoints)
-		print 'Lum= '+str(lum)
+		print('Starting cycle '+str(i+1)+' of '+str(npoints))
+		print('Lum= '+str(lum))
 		inp =open('input.pf','w')
 		inp.write("Wind_type() 9\n")
 		inp.write("Atomic_data "+atomic+"\n")
@@ -188,7 +188,7 @@ if __name__ == "__main__":		# allows one to run from command line without runnin
 			cmd="time "+python_ver+" "+python_opts+" input > output"
 		else:
 			cmd="time mpirun -n "+str(nprocs)+" "+python_ver+" "+python_opts+" input > output"
-		print cmd
+		print(cmd)
 		subprocess.check_call(cmd,shell=True)	   #This is where we define the version of python to use
 		subprocess.check_call("tail -n 60 output  | grep OUTPUT > temp",shell=True)#Strip the last 60 lines from the output
 		inp=open('temp','r')
@@ -244,7 +244,7 @@ if __name__ == "__main__":		# allows one to run from command line without runnin
 		Tout.flush()
 		Heat.flush()
 		Cool.flush()	
-		print 'Finished cycle '+str(i+1)+' of '+str(npoints)
+		print('Finished cycle '+str(i+1)+' of '+str(npoints))
 	#Close the files.
 	Hout.close()
 	Heout.close()

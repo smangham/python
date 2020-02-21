@@ -59,7 +59,6 @@ def doit(root, diagfolder_name=''):
     nfiles = len(files)
     nprocessors = nfiles
 
-    print('test',files)
 
 
     # create some arrays to store the error logs and increment the counters
@@ -83,7 +82,8 @@ def doit(root, diagfolder_name=''):
         # split the grep output up into lines
         output = output.decode()
         data = output.split("\n")
-
+        if len(data) <=1:
+            print('No errors for thread %3d, which is unusual' % i)
         # now cycle through the lines in output
         for j in range(len(data)):
             No_log = True    # variable which is True if this is a new error
@@ -123,15 +123,24 @@ def doit(root, diagfolder_name=''):
     print("Collated errors for " + str(nprocessors) + " processors")
 
 
-    x=Table([error_count,thread_count,error_log],names=['ErrorCount','ThreadCount','Error'])
-    x.write('%s_error_sum.txt' % root, format='ascii.fixed_width_two_line', overwrite=True) 
-    x.sort(keys=['ErrorCount'])
-    x.reverse()  # put in order of the most errors first
+    try:
+        x=Table([error_count,thread_count,error_log],names=['ErrorCount','ThreadCount','Error'])
+        x.sort('ErrorCount')
+        x.reverse()
+        x.write('%s_error_sum.txt' % root, format='ascii.fixed_width_two_line',overwrite=True) 
+        x.sort(keys=['ErrorCount'])
+        x.reverse()  # put in order of the most errors first
+    except:
+        print("Problem creating error counts")
+        if n_logs==0:
+           print('No errors were parsed from the diag files, suggesting Python failed to run to completion')
+        return
 
     print("Recurrences --  number of threads with error -- Description")
     for one in x:
         print("\t%5d -- %5d -- %s" % (one['ErrorCount'],one['ThreadCount'],one['Error']))
     # all done.
+    return
                     
 
 if __name__ == "__main__":        # allows one to run from command line without running automatically with write_docs.py

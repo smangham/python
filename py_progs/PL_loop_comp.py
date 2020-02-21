@@ -106,7 +106,7 @@ if __name__ == "__main__":		# allows one to run from command line without runnin
 			open('cl_hydrogen_'+run_name1+'.dat','r')
 			type1='c'
 		except:
-			print "File names not constructed as expected"
+			print("File names not constructed as expected")
 			raise SystemExit
 
 	if type1=='c':
@@ -134,7 +134,7 @@ if __name__ == "__main__":		# allows one to run from command line without runnin
 			open('cl_hydrogen_'+run_name2+'.dat','r')
 			type2='c'
 		except:
-			print "File names not constructed as expected"
+			print("File names not constructed as expected")
 			raise SystemExit
 
 

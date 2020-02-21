@@ -16,17 +16,18 @@
 #include <math.h>
 #include <string.h>
 #include <stdlib.h>
+
 #include "atomic.h"
 #include "python.h"
-
 #include "log.h"
+
 
 /**********************************************************/
 /** 
  * @brief      Calculates the total luminosity of an AGN type source
  *
  * @param [in] double  r   radius of emitting object
- * @param [in] double  lum   the luminosity of the AGN (2-10keV) - XXX I'm not sure this is used apart from 
+ * @param [in] double  lum   the luminosity of the AGN (2-10keV) - used in the continuum model case 
  * @param [in] double  alpha   the spectral index of the PL source - also sometimes used for a temperature if a BB source is required
  * @param [in] double  freqmin   minimum frequency to integrate over
  * @param [in] double  freqmax   maximum frequency
@@ -42,24 +43,24 @@
  * 
  *
  * ### Notes ###
- * There seem to be some inconsistencies here - lum (the 2-10keV luminosity of the
- * PL source) is supplied but it doesnt seem to be used apart from in the emittance_continuum
- * which is nonsense - this requires a temperature and a local gravity
- * Another inconsistency is that the bremstrahlung code uses values for T and alpha that
+ * The 2-10keV luminosity of the PL source) is only used in the emittance_continuum
+ * whwere it is used to scale the model luminosity to obtain the required value.
+ * A slight inconsistency is that the bremstrahlung code uses values for T and alpha that
  * are stored in the geo structure, whilst the power law uses data supplied in the code.
  *
  **********************************************************/
 
 double
 agn_init (r, lum, alpha, freqmin, freqmax, ioniz_or_final, f)
-     double r, lum, alpha, freqmin, freqmax, *f;
+     double r, lum, alpha, freqmin, freqmax;
      int ioniz_or_final;
+     double *f;
 {
 
   double t;
-  double emit;
+  double scaling;               //The scaling factor to get from a model to get the correct 2-10keV luminosity
+  double emit, emit_2_10;
   int spectype;
-
 
   if (ioniz_or_final == 1)
     spectype = geo.agn_spectype;        /* type for final spectrum */
@@ -67,19 +68,28 @@ agn_init (r, lum, alpha, freqmin, freqmax, ioniz_or_final, f)
     spectype = geo.agn_ion_spectype;    /*type for ionization calculation */
   if (spectype >= 0)
   {
-    /* Assume that if we simulate the continuum for an AGN that emit is the luminosity in a specific range */
-	  /* XXX I'm not sure this call is correct - it would be for a set of models, which are gridded in t and log g - but we 
-	  supply lum and alpha */
-    emit = emittance_continuum (spectype, freqmin, freqmax, lum, alpha); 
-    *f = emit;
+    /* This calls models - we *should* have only one model in this case, so we call the emittance
+       continuum with dummy variables instead of T and g (the trailing 0.0s). */
+    /* First we compute the emittance from 2-10keV to compare with the required 2-10keV luminosity */
+    emit_2_10 = emittance_continuum (spectype, 4.84e17, 2.42e18, 0.0, 0.0);
+    if (emit_2_10 <= 0.0)
+    {
+      Error ("agn_init: Supplied model SED has no power in 2-10keV band - cannot continue\n");
+      exit (0);
+    }
+    scaling = lum / emit_2_10;  //This gives us a scaling factor which can be applied to whatever band we are dealing with
+
+
+    emit = emittance_continuum (spectype, freqmin, freqmax, 0.0, 0.0);  //Compute emittance (luminosity) for the actual band
+    *f = emit * scaling;        //And scale it
   }
-  else if (spectype == SPECTYPE_POW) //Power law - uses constant computed elsewhere and spectrl index
+  else if (spectype == SPECTYPE_POW)    //Power law - uses constant computed elsewhere and spectral index
   {
     /* Emittance_pow actucally returns the specific luminosity directly */
     emit = emittance_pow (freqmin, freqmax, alpha);
     *f = emit;
   }
-  else if (spectype == SPECTYPE_BB) //Blackbody - uses the temperature which is stored in alpha...
+  else if (spectype == SPECTYPE_BB)     //Blackbody - uses the temperature which is stored in alpha...
   {
 
     t = alpha;                  /* For this case the second variable is t */
@@ -89,15 +99,17 @@ agn_init (r, lum, alpha, freqmin, freqmax, ioniz_or_final, f)
     *f = emit;
     *f *= (4. * PI * r * r);
   }
-  else if (spectype == SPECTYPE_CL_TAB) //A specical broken power law mode made to match cloudy - mainly for testing purposes
+  else if (spectype == SPECTYPE_CL_TAB) //A special broken power law mode made to match cloudy - mainly for testing purposes
   {
     /* Emittance_pow actually returns the specific luminosity directly */
-    emit = emittance_bpow (freqmin, freqmax, lum, alpha);
+    emit = emittance_bpow (freqmin, freqmax, alpha);
     *f = emit;
   }
-  else if (spectype == SPECTYPE_BREM) //Bremstrahlung - uses T and alpha which are stored in geo. 
+  else if (spectype == SPECTYPE_BREM)   //Bremstrahlung - uses T and alpha which are stored in geo. 
   {
-    emit = qromb (integ_brem, freqmin, freqmax, 1e-4);
+//    emit = qromb (integ_brem, freqmin, freqmax, 1e-4);
+    emit = num_int (integ_brem, freqmin, freqmax, 1e-4);
+
     *f = emit;
   }
 
@@ -138,13 +150,13 @@ emittance_pow (freqmin, freqmax, alpha)
   /* in advanced mode, this should always be zero */
   fmin = freqmin;               // default is no cutoff
   emit = 0.0;
-  if (freqmax < geo.pl_low_cutoff) //The maximum frequency requested is *lower* than the cut off
+  if (freqmax < geo.pl_low_cutoff)      //The maximum frequency requested is *lower* than the cut off
   {
-    return (emit);  //Return zero
+    return (emit);              //Return zero
   }
   else if (freqmin < geo.pl_low_cutoff) //The minimum frequency is lower than the cxut off
   {
-    fmin = geo.pl_low_cutoff; //Reset the min frequency to the cutoff
+    fmin = geo.pl_low_cutoff;   //Reset the min frequency to the cutoff
   }
 
   /* conservative error check */
@@ -169,31 +181,6 @@ emittance_pow (freqmin, freqmax, alpha)
 }
 
 
-
-
-//OLD /**************************************************************************
-//OLD                     Southampton University
-//OLD 
-//OLD 
-//OLD   Synopsis:  emittance_bpow computes the emittance of a broken power law coded to try to replicate the cloudy table type power law. There are three sections - a central bit, which should cover the 2-10kev portion of the spectrum, a low frequency tail and a high frequency tail . 
-//OLD 
-//OLD   Description:	
-//OLD 
-//OLD   Arguments:  freqmin and freqmax are the min and max frequencies that we are generating photons over, lum is the 2-10kev luminosity and alpha is the 2-10kev slope.
-//OLD 
-//OLD 
-//OLD   Returns:   The emittance of the whole power law.
-//OLD 
-//OLD   Notes:
-//OLD 
-//OLD 
-//OLD   History:
-//OLD 10oct	nsh	oded as part of initial effort to include a power law component
-//OLD 		to AGN
-//OLD 
-//OLD  ************************************************************************/
-
-
 /**********************************************************/
 /** 
  * @brief      Works out the luminosity of a broken power law
@@ -211,21 +198,18 @@ emittance_pow (freqmin, freqmax, alpha)
  *
  *
  * ### Notes ###
- * ??? NOTES ???
+ * 
  *
  **********************************************************/
 
 double
-emittance_bpow (freqmin, freqmax, lum, alpha)
-     double freqmin, freqmax, lum, alpha;
+emittance_bpow (freqmin, freqmax, alpha)
+     double freqmin, freqmax, alpha;
 {
   double constant_low, constant_hi, emit;
   double e1, e2, e3;
   double atemp, ctemp, f1, f2;
-  double pl_low, pl_hi;
-  /* these are the frequencies over which the power law is defined - currently set to the
-     equivalent of 2 to 10 keV */
-
+  double pl_low, pl_hi;         //The low and high frequency breaks in the power law spectrum
 
 #define   XFREQMIN  4.84e17
 #define   XFREQMAX  2.42e18
@@ -240,7 +224,7 @@ emittance_bpow (freqmin, freqmax, lum, alpha)
   pl_hi = geo.agn_cltab_hi / HEV;
 
 
-  constant_low = xband.pl_const[0];     //we have already worked out the constants
+  constant_low = xband.pl_const[0];     //we have already worked out the constants in bands.c
   constant_hi = xband.pl_const[xband.nbands - 1];
 
 
@@ -263,7 +247,7 @@ emittance_bpow (freqmin, freqmax, lum, alpha)
     e1 = ctemp * ((pow (f2, atemp + 1.0) - pow (f1, atemp + 1.0)) / (atemp + 1.0));
     Log ("Broken power law: Emittance below low frequency break is %e\n", e1);
   }
-  else //some of the power is in the low frequency bit, so we need to integrate from fmin up to the low frequency boundary 
+  else                          //some of the power is in the low frequency bit, so we need to integrate from fmin up to the low frequency boundary 
   {
     atemp = geo.agn_cltab_low_alpha;
     f1 = freqmin;
@@ -338,13 +322,6 @@ emittance_bpow (freqmin, freqmax, lum, alpha)
 
 
 
-
-
-
-
-
-
-
 /**********************************************************/
 /** 
  * @brief      Generate a photon from an AGN object
@@ -390,12 +367,12 @@ photo_gen_agn (p, r, alpha, weight, f1, f2, spectype, istart, nphot)
                                    the temperature. */
 
 
-  if ((iend = istart + nphot) > NPHOT) //Consistency check - if it fails then we are being asked to make more photons than expected
+  if ((iend = istart + nphot) > NPHOT)  //Consistency check - if it fails then we are being asked to make more photons than expected
   {
     Error ("photo_gen_agn: iend %d > NPHOT %d\n", iend, NPHOT);
-    exit (0);
+    Exit (0);
   }
-  if (f2 < f1) //ASnother consistency check - it is not sensible to have the upper frequency lower than the lower frequency
+  if (f2 < f1)                  //Another consistency check - it is not sensible to have the upper frequency lower than the lower frequency
   {
     Error ("photo_gen_agn: Cannot generate photons if freqmax %g < freqmin %g\n", f2, f1);
   }
@@ -423,30 +400,30 @@ photo_gen_agn (p, r, alpha, weight, f1, f2, spectype, istart, nphot)
 
 
 
-  for (i = istart; i < iend; i++) //Loop over the number of photons we are asked to make
+  for (i = istart; i < iend; i++)       //Loop over the number of photons we are asked to make
   {
     p[i].origin = PTYPE_AGN;    // For BL photons this is corrected in photon_gen 
-    p[i].w = weight;             //Set the weight
-    p[i].istat = p[i].nscat = p[i].nrscat = 0; //Initialise status, number of scatters and number of resonant scatters
+    p[i].w = weight;            //Set the weight
+    p[i].istat = p[i].nscat = p[i].nrscat = 0;  //Initialise status, number of scatters and number of resonant scatters
     p[i].grid = 0;              //Set the grid number to zero 
     p[i].tau = 0.0;             //Set the opacity seen by the photon to zero
     p[i].nres = -1;             // It's a continuum photon - so it is not made in a resonance
     p[i].nnscat = 1;            // Set to one scatter
 
-    if (spectype == SPECTYPE_BB) //Blackbody spectrum, we use the supplied temperature
+    if (spectype == SPECTYPE_BB)        //Blackbody spectrum, we use the supplied temperature
     {
       p[i].freq = planck (t, freqmin, freqmax);
     }
     else if (spectype == SPECTYPE_UNIFORM)
-    {                           
+    {
       /*Produce a uniform distribution of frequencies */
-	  p[i].freq = random_number(freqmin,freqmax); //Just a random frequency 
+      p[i].freq = random_number (freqmin, freqmax);     //Just a random frequency 
     }
     else if (spectype == SPECTYPE_POW)  //Power law spectrum
     {
       p[i].freq = get_rand_pow (freqmin, freqmax, alpha);
     }
-    else if (spectype == SPECTYPE_CL_TAB) //Broken power law
+    else if (spectype == SPECTYPE_CL_TAB)       //Broken power law
     {
       p[i].freq = get_rand_pow (freqmin, freqmax, alpha);
     }
@@ -456,10 +433,10 @@ photo_gen_agn (p, r, alpha, weight, f1, f2, spectype, istart, nphot)
     }
     else
     {
-      p[i].freq = one_continuum (spectype, t, geo.gstar, freqmin, freqmax); //A continuum (model) photon
+      p[i].freq = one_continuum (spectype, -1., -1., freqmin, freqmax); //A continuum (model) photon - we use t=g=-1 to flag that this is not a normal model
     }
 
-    if (p[i].freq < freqmin || freqmax < p[i].freq) //A check to see that we havent made a photon out of range.
+    if (p[i].freq < freqmin || freqmax < p[i].freq)     //A check to see that we havent made a photon out of range.
     {
       Error_silent ("photo_gen_agn: phot no. %d freq %g out of range %g %g\n", i, p[i].freq, freqmin, freqmax);
     }
@@ -471,14 +448,12 @@ photo_gen_agn (p, r, alpha, weight, f1, f2, spectype, istart, nphot)
 
     if (geo.pl_geometry == PL_GEOMETRY_SPHERE)
     {
-      randvec (p[i].x, r); //Simple random coordinate on the surface of a shpere
+      randvec (p[i].x, r);      //Simple random coordinate on the surface of a shpere
 
       /* Added by SS August 2004 for finite disk. */
       if (geo.disk_type == DISK_VERTICALLY_EXTENDED)
       {
-        /* JM XXX -- is this bit right? it seems to be that zdisk should use the x coordinate rather than
-           magnitude of vector (r).*/
-        while (fabs (p[i].x[2]) < zdisk (r)) //We just need to make sure that the photon isn't submerged in the extneded disk
+        while (fabs (p[i].x[2]) < zdisk (p[i].x[0]))    //We just need to make sure that the photon isn't submerged in the extneded disk
         {
           randvec (p[i].x, r);
         }
@@ -487,11 +462,10 @@ photo_gen_agn (p, r, alpha, weight, f1, f2, spectype, istart, nphot)
         if (fabs (p[i].x[2]) < zdisk (r))
         {
           Error ("Photon_agn: agn photon %d in disk %g %g %g %g %g\n", i, p[i].x[0], p[i].x[1], p[i].x[2], zdisk (r), r);
-          exit (0);
+          Exit (0);
         }
       }
-      /* this last bit is the direction, might need a change XXX NSH why? A bit of an obscure note...*/
-      randvcos (p[i].lmn, p[i].x);
+      randvcos (p[i].lmn, p[i].x);      //Random direction centred on the previously randmised vector
     }
 
 
@@ -504,9 +478,8 @@ photo_gen_agn (p, r, alpha, weight, f1, f2, spectype, istart, nphot)
       p[i].x[0] = p[i].x[1] = 0.0;
 
       /* need to set the z coordinate to the lamp post height, but allow it to be above or below */
-//      if (rand () > MAXRAND / 2) // DONE
-	  if (random_number(-1.0,1.0) > 0.0)
-		  
+      if (random_number (-1.0, 1.0) > 0.0)
+
       {                         /* Then the photon emerges in the upper hemisphere */
         p[i].x[2] = geo.lamp_post_height;
       }
@@ -517,7 +490,6 @@ photo_gen_agn (p, r, alpha, weight, f1, f2, spectype, istart, nphot)
 
       randvec (p[i].lmn, 1.0);  // lamp-post geometry is isotropic, so completely random vector
     }
-
   }
 
   return (0);

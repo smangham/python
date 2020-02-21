@@ -6,6 +6,7 @@
  *
  * @brief  diagnostic macro-atom printouts.
  ***********************************************************/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -15,15 +16,15 @@
 
 
 /**********************************************************/
-/** @name      matom_emiss_report
+/** 
  * @brief      a routine which reports the matom level and kpkt emissivities summed
  * 	over all cells. It is called in define_phot() in the spectral cycles, after get_matom_f()
  *
  * @return     simply logs the level emissivites and kpkt emissivites in macro atom mode.
  *
  * @details
- * prints out the level emissivities in macro atoms, summed over each cell. 
- *     	Should only be used in macro atom mode in the spectral cycles 
+ * prints out the level emissivities in macro atoms, summed over each cell.
+ *     	Should only be used in macro atom mode in the spectral cycles
  *     	(when geo.matom_radiation = 1).
  *
  * ### Notes ###

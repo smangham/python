@@ -1,0 +1,7 @@
+name: Hydro.file
+description: |
+  Relative path to a hydrodynamic snapshot file to be imported.
+type: String
+parent:
+  Wind.type: hydro 
+file: hydro_import.c

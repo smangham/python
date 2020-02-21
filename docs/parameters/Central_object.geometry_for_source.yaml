@@ -1,0 +1,19 @@
+name: Central_object.geometry_for_source
+description: |
+  If the central source in an AGN/BH system is radiating, what geometry should it radiate from?
+   This is applicable even for black-body sources, where the *luminosity* depends on :ref:`Central_object.radius`.
+type: Enumerator
+values:
+  lamp_post: |
+    The central source radiates from two point sources
+    located on the system axis above and below the disk plane.
+    Emission is completely isotropic.
+  sphere: |
+    The central source radiates from a spherical surface with radius :ref:`Central_object.radius`.
+    Emission is cosine-weighted in the direction of the sphere normal at the point of emission.
+    Photons that would be spawned in an extended disk (if :ref:`Disk.type` is `vertically.extended`)
+    are re-generated.
+parent:
+  System_type: [agn, bh]
+  Central_object.radiation: true
+file: setup_star_bh.c

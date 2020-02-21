@@ -1,0 +1,10 @@
+name: KWD.acceleration_length
+description: |
+  The size of the acceleration length scale for a disk wind described by the
+  KWD model.
+type: Double
+unit: cm
+values: Greater than 0
+parent:
+  Wind.type: kwd
+file: knigge.c

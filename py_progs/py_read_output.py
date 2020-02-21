@@ -59,7 +59,8 @@ def read_spectrum(filename):
     if not '.spec' in filename: 
         if not '.log_spec_tot' in filename:
             if not '.spec_tot' in filename:
-                filename = filename + '.spec' # assume user wants the spectrum file if no suffix
+                if not ".log_spec" in filename:
+                    filename = filename + '.spec' # assume user wants the spectrum file if no suffix
 
     if has_astropy:
         spectrum = ascii.read(filename)
@@ -329,7 +330,7 @@ def write_pf(root, pf_dict):
 
     f = open(root, "w")
 
-    for key,val in pf_dict.iteritems():
+    for key,val in pf_dict.items():
 
         # convert if it is a float
         if isinstance(val, list):           
@@ -342,6 +343,8 @@ def write_pf(root, pf_dict):
         #            f.write("%s    %e\n" % (key, val))
         else:
             f.write("%s    %s\n" % (key, val))
+
+    f.close()
 
     return (0)
 

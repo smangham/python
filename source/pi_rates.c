@@ -1,6 +1,6 @@
 
 /***********************************************************/
-/** @file  new_pi_rates.c
+/** @file  pi_rates.c
  * @author nsh
  * @date   Aug, 2014
  *
@@ -8,11 +8,11 @@
  *
  * ???
  ***********************************************************/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
-
 
 #include "atomic.h"
 #include "python.h"
@@ -27,9 +27,8 @@ double xpl_alpha, xpl_w, xpl_logw;
 double xexp_temp, xexp_w;
 
 
-
 /**********************************************************/
-/** 
+/**
  * @brief      int calculates the photoionization rate coefficient for an ion in a given cell
  *
  * @param [in] int  nion   The ion being ionized (or the index to an inner shell cross section)
@@ -39,7 +38,7 @@ double xexp_temp, xexp_w;
  * @return     The photioinization rate coefficient for the ion.
  *
  * @details
- *  calc_pi_rate  calculates the photoionization rate coefficient for ion	
+ *  calc_pi_rate  calculates the photoionization rate coefficient for ion
  * 	nion, based upon the mean intensity stored in cell xplasma
  * 	The mode tells the subroutine wether we are modelling the
  * 	mean intensity as a dilute blackbody (mode2) or as a series
@@ -61,8 +60,8 @@ double xexp_temp, xexp_w;
 
 double
 calc_pi_rate (nion, xplasma, mode, type)
-     PlasmaPtr xplasma;
      int nion;
+     PlasmaPtr xplasma;
      int mode;
      int type;
 {
@@ -84,12 +83,12 @@ calc_pi_rate (nion, xplasma, mode, type)
     if (-1 < nion && nion < nions)      //Get cross section for this specific ion_number
     {
       ntmin = ion[nion].ntop_ground;    /*We only ever use the ground state cross sections. This is for topbase */
-      nvmin = ion[nion].nxphot;			/* this gets any verner cross section */
+      nvmin = ion[nion].nxphot; /* this gets any verner cross section */
     }
     else
     {
       Error ("calc_pi_rate: %d is unacceptable value of nion\n", nion);
-      exit (0);
+      Exit (0);
       return (1.0);
     }
     if (ion[nion].phot_info > 0)        //topbase or hybrid VFKY (GS)+TB excited
@@ -97,14 +96,14 @@ calc_pi_rate (nion, xplasma, mode, type)
       xtop = &phot_top[ntmin];
     }
     else if (ion[nion].phot_info == 0)  // verner
-    {                           
-      xtop = &phot_top[nvmin];    //If we don't have a topbase or hybrid cross section we fall back to VFKY
+    {
+      xtop = &phot_top[nvmin];  //If we don't have a topbase or hybrid cross section we fall back to VFKY
     }
     else
     {
       Error ("calc_pi_rate: No photoionization xsection for ion %d (element %d, ion state %d)\n", nion, ion[nion].z, ion[nion].istate);
       /* We have a really serious problem - we have no business including an ion for which we have no photoionization data.... */
-      exit (0);
+      Exit (0);
     }
   }
   else if (type == 2)           //We are computing an inner shell rate - nion refers to an actual cross section.
@@ -119,7 +118,7 @@ calc_pi_rate (nion, xplasma, mode, type)
         ("calc_pi_rate: No inner shell xsection for record %d (element %d, ion state %d)\n",
          nion, inner_cross[nion].z, inner_cross[nion].istate);
       /* We have a really serious problem - we have no business including an ion for which we have no photoionization data.... */
-      exit (0);
+      Exit (0);
     }
   }
   else
@@ -154,44 +153,45 @@ calc_pi_rate (nion, xplasma, mode, type)
         {
           if (xplasma->spec_mod_type[j] == SPEC_MOD_PL)
           {
-            pi_rate += qromb (tb_logpow1, fthresh, fmax, pl_qromb);
+            pi_rate += num_int (tb_logpow, fthresh, fmax, pl_qromb);
+
           }
           else
           {
-            pi_rate += qromb (tb_exp1, fthresh, fmax, exp_qromb);
+            pi_rate += num_int (tb_exp, fthresh, fmax, exp_qromb);
           }
         }
-        else if (f1 < fthresh && fthresh < f2 && f2 < fmax)     //case 2 
+        else if (f1 < fthresh && fthresh < f2 && f2 < fmax)     //case 2
         {
           if (xplasma->spec_mod_type[j] == SPEC_MOD_PL)
           {
-            pi_rate += qromb (tb_logpow1, fthresh, f2, pl_qromb);
+            pi_rate += num_int (tb_logpow, fthresh, f2, pl_qromb);
           }
           else
           {
-            pi_rate += qromb (tb_exp1, fthresh, f2, exp_qromb);
+            pi_rate += num_int (tb_exp, fthresh, f2, exp_qromb);
           }
         }
         else if (f1 > fthresh && f1 < fmax && fmax < f2)        //case 3
         {
           if (xplasma->spec_mod_type[j] == SPEC_MOD_PL)
           {
-            pi_rate += qromb (tb_logpow1, f1, fmax, pl_qromb);
+            pi_rate += num_int (tb_logpow, f1, fmax, pl_qromb);
           }
           else
           {
-            pi_rate += qromb (tb_exp1, f1, fmax, exp_qromb);
+            pi_rate += num_int (tb_exp, f1, fmax, exp_qromb);
           }
         }
         else if (f1 > fthresh && f2 < fmax)     // case 4
         {
           if (xplasma->spec_mod_type[j] == SPEC_MOD_PL)
           {
-            pi_rate += qromb (tb_logpow1, f1, f2, pl_qromb);
+            pi_rate += num_int (tb_logpow, f1, f2, pl_qromb);
           }
           else
           {
-            pi_rate += qromb (tb_exp1, f1, f2, exp_qromb);
+            pi_rate += num_int (tb_exp, f1, f2, exp_qromb);
           }
         }
         else                    //case 5 - should only be the case where the band is outside the range for the integral.
@@ -204,21 +204,21 @@ calc_pi_rate (nion, xplasma, mode, type)
   }
   else if (mode == 2)           //blackbody mode
   {
-    fmaxtemp = xtop->freq[xtop->np - 1]; //Set the maximum frequency temporarily to the maximum cross section frequency
-    fmax = check_fmax (fthresh, fmaxtemp, xplasma->t_r);  /*Check that the requested maximum frequency is sensible - if it is way
-		 off the end of the wien tail then the integration can fail - reset if necessary.*/
-    if (fthresh > fmax)  //The threshold for PI is above the maximum frequency of the radiation
+    fmaxtemp = xtop->freq[xtop->np - 1];        //Set the maximum frequency temporarily to the maximum cross section frequency
+    fmax = check_fmax (fmaxtemp, xplasma->t_r); /*Check that the requested maximum frequency is sensible - if it is way
+                                                   off the end of the wien tail then the integration can fail - reset if necessary. */
+    if (fthresh > fmax)         //The threshold for PI is above the maximum frequency of the radiation
     {
       pi_rate = 0.0;
     }
-    else  //We are OK - do the integral
+    else                        //We are OK - do the integral
     {
       qromb_temp = xplasma->t_r;
-      pi_rate = xplasma->w * qromb (tb_planck1, fthresh, fmax, 1.e-4);
+      pi_rate = xplasma->w * num_int (tb_planck, fthresh, fmax, 1.e-4);
     }
   }
 
-  pi_rate = (4 * PI * pi_rate) / H;  //We multiply by 4pi and divide by photon energy - the division by nu is done in the integrands
+  pi_rate = (4 * PI * pi_rate) / PLANCK;        //We multiply by 4pi and divide by photon energy - the division by nu is done in the integrands
 
 
 
@@ -228,10 +228,11 @@ calc_pi_rate (nion, xplasma, mode, type)
 
 
 /**********************************************************/
-/** 
- * @brief      The integrand for working out the PI rate in a BB radiation field 
+/**
+ * @brief      The integrand for working out the PI rate in a BB radiation field
  *
- * @param [in] double  freq   the frequency 
+ * @param [in] double  freq   the frequency
+ * @param [in] void  params   An extra (unused) variable to make it paletable for the gsl integrator
  * @return     value of sigma B_nu/nu at nu
  *
  * @details
@@ -239,34 +240,34 @@ calc_pi_rate (nion, xplasma, mode, type)
  *    ionisation cross section is significant. This is the function for ions with a topbase cross section NSH
  *
  * ### Notes ###
- * 
+ *
  **********************************************************/
 
 double
-tb_planck1 (freq)
-     double freq;
+tb_planck (double freq, void *params)
 {
   double answer, bbe;
-  bbe = exp ((H * freq) / (BOLTZMANN * qromb_temp));
-  answer = (2. * H * pow (freq, 3.)) / (pow (C, 2));
+  bbe = exp ((PLANCK * freq) / (BOLTZMANN * qromb_temp));
+  answer = (2. * PLANCK * pow (freq, 3.)) / (pow (VLIGHT, 2));
   answer *= (1 / (bbe - 1));
 //      answer*=weight;
   answer *= sigma_phot (xtop, freq);
-  answer /= freq; 
+  answer /= freq;
 
   return (answer);
 }
 
 
 /**********************************************************/
-/** 
- * @brief      The integrand for working out the PI rate in a radiation field modelled by a power law 
+/**
+ * @brief      The integrand for working out the PI rate in a radiation field modelled by a power law
  *
- * @param [in] double  freq   the frequency 
+ * @param [in] double  freq   the frequency
+ * @param [in] void  params   An extra (unused) variable to make it paletable for the gsl integrator
  * @return     value of sigma J_nu/nu at nu
  *
  * @details
- * This is the integrand for computing the PI rate coefficient when j_nu is described by a power 
+ * This is the integrand for computing the PI rate coefficient when j_nu is described by a power
  * law. The returned value is J_nu x cross section / nu. The power law is computed in log space to
  * allow a larger range of possible values.
  *
@@ -275,11 +276,10 @@ tb_planck1 (freq)
  **********************************************************/
 
 double
-tb_logpow1 (freq)
-     double freq;
+tb_logpow (double freq, void *params)
 {
   double answer;
-  answer = pow (10, xpl_logw + (xpl_alpha - 1.0) * log10 (freq)); //NB - the alpha-1.0 appears because we divide by nu
+  answer = pow (10, xpl_logw + (xpl_alpha - 1.0) * log10 (freq));       //NB - the alpha-1.0 appears because we divide by nu
   answer *= sigma_phot (xtop, freq);    // and finally multiply by the cross section.
 
   return (answer);
@@ -287,10 +287,11 @@ tb_logpow1 (freq)
 
 
 /**********************************************************/
-/** 
- * @brief      The integrand for working out the PI rate in a radiation field modelled by an exponential 
+/**
+ * @brief      The integrand for working out the PI rate in a radiation field modelled by an exponential
  *
- * @param [in] double  freq   the frequency 
+ * @param [in] double  freq   the frequency
+ * @param [in] void  params   An extra (unused) variable to make it paletable for the gsl integrator
  * @return     value of sigma J_nu/nu at nu
  *
  * @details
@@ -302,13 +303,12 @@ tb_logpow1 (freq)
  **********************************************************/
 
 double
-tb_exp1 (freq)
-     double freq;
+tb_exp (double freq, void *params)
 {
   double answer;
 
-  answer = xexp_w * exp ((-1.0 * H * freq) / (BOLTZMANN * xexp_temp));
+  answer = xexp_w * exp ((-1.0 * PLANCK * freq) / (BOLTZMANN * xexp_temp));
   answer *= sigma_phot (xtop, freq);    // and finally multiply by the cross section.
-  answer /= freq;   //then finally finally divide by the frequency
+  answer /= freq;               //then finally finally divide by the frequency
   return (answer);
 }

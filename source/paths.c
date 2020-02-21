@@ -6,12 +6,14 @@
  *
  * File containing photon path tracking functions.
  ***********************************************************/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
 #include "atomic.h"
 #include "python.h"
+
 
 /**********************************************************/
 /** @var *double reverb_path_bin
@@ -46,7 +48,7 @@ wind_paths_constructor (WindPtr wind)
   if (paths == NULL)
   {
     Error ("wind_paths_constructor: Could not allocate memory for cell %d\n", wind->nwind);
-    exit (0);
+    Exit (0);
   }
 
   paths->ad_path_flux = (double *) calloc (sizeof (double), geo.reverb_path_bins);
@@ -61,7 +63,7 @@ wind_paths_constructor (WindPtr wind)
   if (paths->ad_path_flux == NULL || paths->ai_path_num_wind == NULL)
   {
     Error ("wind_paths_constructor: Could not allocate memory for cell %d bins\n", wind->nwind);
-    exit (0);
+    Exit (0);
   }
   return (paths);
 }
@@ -350,7 +352,7 @@ r_draw_from_path_histogram (Wind_Paths_Ptr PathPtr)
 
   r_total = 0.0;
 //  r_rand = PathPtr->d_flux * rand () / MAXRAND; DONE
-  r_rand = PathPtr->d_flux * random_number(0.0,1.0);
+  r_rand = PathPtr->d_flux * random_number (0.0, 1.0);
   i_path = -1;
 
   //printf("DEBUG: r_rand %g out of total %g\n",r_rand, PathPtr->d_flux);
@@ -363,7 +365,7 @@ r_draw_from_path_histogram (Wind_Paths_Ptr PathPtr)
   r_bin_min = reverb_path_bin[i_path - 1];
   r_bin_max = reverb_path_bin[i_path];
 //  r_bin_rand = (rand () / MAXRAND) * (r_bin_max - r_bin_min); DONE
-  r_bin_rand = random_number(0.0,1.0) * (r_bin_max - r_bin_min);
+  r_bin_rand = random_number (0.0, 1.0) * (r_bin_max - r_bin_min);
   r_path = r_bin_min + r_bin_rand;
   return (r_path);
 }
@@ -740,7 +742,7 @@ wind_paths_output_vtk (WindPtr wind, int ndom)
   if ((fptr = fopen (c_file, "w")) == NULL)
   {                             //If this file can't be opened, error out
     Error ("wind_paths_output_vtk: Unable to open %s for writing\n", c_file);
-    exit (0);
+    Exit (0);
   }
   Log ("Outputting wind path information to file '%s'.\n", c_file);
 

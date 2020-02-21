@@ -1,0 +1,11 @@
+name: Boundary_layer.power_law_index
+description: |
+  The exponent 𝛼 in a power law SED applied to an AGN-style power law source for a non-AGN system.
+  central source of the form $L_\nu=K\nu^\alpha$.
+
+  See :ref:`Radiation_types` and :ref:`Central_object.power_law_index`.
+type: Double
+values: Any - but sign is not assumed, so for negative index use a negative value
+parent:
+  Boundary_layer.rad_type_to_make_wind: [power_law]
+file: setup_star_bh.c

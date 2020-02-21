@@ -1,0 +1,9 @@
+name: Homologous.vbase
+description: |
+  Velocity at the base of the wind
+type: Double
+unit: cm
+values: Greater than 0
+parent:
+  Wind.type: homologous
+file: homologous.c

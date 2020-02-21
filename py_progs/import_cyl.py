@@ -12,7 +12,7 @@ Read the master file produced by windsave2table for a
 
 Command line usage (if any):
 
-    usage: import_1d.py rootname
+    usage: import_cyl.py rootname
 
     where rootname is the rootname of the mastertable
     or windsave file

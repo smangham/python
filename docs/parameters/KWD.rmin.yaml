@@ -1,0 +1,9 @@
+name: KWD.rmin
+description: |
+  The radius at which the disk wind begins, in units of central object radii.
+type: Double
+unit: :ref:`Central_object.radius`
+values: Greater than 1
+parent:
+  Wind.type: kwd
+file: knigge.c

@@ -59,7 +59,7 @@ def doit():
         lines=f.readlines()
         n=0
         for line in lines:
-            n+=line.count('@name')
+            n+=line.count('@brief')
             n+=line.count('@param')
         print(one,n)
         if n==0:

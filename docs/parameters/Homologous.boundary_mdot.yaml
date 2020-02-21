@@ -1,0 +1,12 @@
+name: Homologous.boundary_mdot
+description: |
+  The mass loss rate at the base of the wind in a homlogous flow model, a flow
+  in which the velocity is proporional to the radius.  In general, mdot will
+  decline with radius, depending on the exponent of the power law that describes
+  the trend in density.
+type: Double
+unit: M☉/yr
+values: Greater than 0
+parent:
+  Wind.type: homologous
+file: homologous.c

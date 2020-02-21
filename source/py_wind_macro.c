@@ -1,6 +1,6 @@
 
 /***********************************************************/
-/** @file  new_py_wind_macro.c
+/** @file  py_wind_macro.c
  * @author ksl
  * @date   January, 2018
  *
@@ -15,19 +15,20 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+
 #include "atomic.h"
 #include "python.h"
 
 
 /**********************************************************/
-/** @name      xadiabatic_cooling_summary
+/**
  * @brief      prints the adiabatic cooling in each cell,
  *   and the total adiabatic cooling.
  *
- * @param [in] WindPtr  w   
- * @param [in] char  rootname[]   
- * @param [in] int  ochoice   
- * @return  0 
+ * @param [in] WindPtr  w
+ * @param [in] char  rootname[]
+ * @param [in] int  ochoice
+ * @return  0
  *
  * @details
  *
@@ -76,15 +77,15 @@ xadiabatic_cooling_summary (w, rootname, ochoice)
 }
 
 /**********************************************************/
-/** @name      macro_summary
- * @brief      is a routine intended to allow one to 
+/**
+ * @brief      is a routine intended to allow one to
  *   display information about macro atoms. It is the top level routine
  *   for macro information and requires further input from the user.
  *
- * @param [in] WindPtr  w   
- * @param [in] char  rootname[]   
- * @param [in] int  ochoice   
- * @return 
+ * @param [in] WindPtr  w
+ * @param [in] char  rootname[]
+ * @param [in] int  ochoice
+ * @return
  *
  **********************************************************/
 
@@ -162,7 +163,7 @@ emissivities (2) P_escapes (3) Detailed Pops (4) taus (5) estimators (6)", &choo
     }
   }
 
-  /* JM 1311 -- new loop added to report escape probabilities 
+  /* JM 1311 -- new loop added to report escape probabilities
      Note this currently only works for Balmer lines */
   else if (choose == 3)
   {
@@ -185,7 +186,7 @@ emissivities (2) P_escapes (3) Detailed Pops (4) taus (5) estimators (6)", &choo
     }
   }
 
-  /* JM 1311 -- new loop added to report taus 
+  /* JM 1311 -- new loop added to report taus
      Note this currently only works for Balmer lines */
   else if (choose == 5)
   {
@@ -198,7 +199,7 @@ emissivities (2) P_escapes (3) Detailed Pops (4) taus (5) estimators (6)", &choo
   }
 
   /* JM 1311 -- add stuff for estimators here */
-  // else 
+  // else
   //   {
   //     rdint ("Estimator to view: jbar (0) back (-1)", &version);
   //     while (version >= 0)
@@ -214,12 +215,12 @@ emissivities (2) P_escapes (3) Detailed Pops (4) taus (5) estimators (6)", &choo
 }
 
 /**********************************************************/
-/** @name      ion_overview
- * @brief      macro_summary is a routine intended to allow one to 
+/**
+ * @brief      macro_summary is a routine intended to allow one to
  *   display information about macro atoms. It is the top level routine
  *   for macro information and requires further input from the user.
  *
- * @param [in] int  icell   
+ * @param [in] int  icell
  * @return 0
  *
  **********************************************************/
@@ -245,12 +246,12 @@ ion_overview (icell)
 
 
 /**********************************************************/
-/** @name      config_overview
- * @brief      macro_summary is a routine intended to allow one to 
+/**
+ * @brief      macro_summary is a routine intended to allow one to
  *   display information about macro atoms. It is the top level routine
  *   for macro information and requires further input from the user.
  *
- * @param [in] int  n  
+ * @param [in] int  n
  * @param [in] int  icell
  * @return 0
  *
@@ -377,12 +378,12 @@ config_overview (n, icell)
 
 
 /**********************************************************/
-/** @name      depcoef_overview
- * @brief      is a routine which prints information about departure 
+/**
+ * @brief      is a routine which prints information about departure
  *   coefficients and level populations in a cell. There is probably a crossover
  *   between this and level_popsoverview
  *
- * @param [in] int  icell   
+ * @param [in] int  icell
  * @return 0
  *
  *
@@ -443,13 +444,13 @@ depcoef_overview (icell)
 }
 
 /**********************************************************/
-/** @name      copy_plasma
- * @brief      Routine to copy the necessary parts of a plasma structure for computing 
- *   a set of level populations. x1 points to the cell from which data is copied 
+/**
+ * @brief      Routine to copy the necessary parts of a plasma structure for computing
+ *   a set of level populations. x1 points to the cell from which data is copied
  *   and x2 points to the cell to which data is copied.
  *
- * @param [in] PlasmaPtr  x1   
- * @param [in] PlasmaPtr  x2   
+ * @param [in] PlasmaPtr  x1
+ * @param [in] PlasmaPtr  x2
  * @return 0
  *
  **********************************************************/
@@ -479,14 +480,23 @@ copy_plasma (x1, x2)
     Error ("calloc_dyn_plasma: Error in allocating memory for partition\n");
     exit (0);
   }
+  if ((x2->levden = calloc (sizeof (double), nlte_levels)) == NULL)
+  {
+    Error ("calloc_dyn_plasma: Error in allocating memory for levden\n");
+    exit (0);
+  }
   for (i = 0; i < nions; i++)
   {
     x2->density[i] = x1->density[i];
     x2->partition[i] = x1->partition[i];
   }
+  for (i = 0; i < nlte_levels; i++)
+  {
+    x2->levden[i] = x1->levden[i];
+  }
 
 
-  /* Note this isn't everything in the cell! 
+  /* Note this isn't everything in the cell!
      Only the things needed for these routines */
 
   return (0);
@@ -494,10 +504,10 @@ copy_plasma (x1, x2)
 
 
 /**********************************************************/
-/** @name      dealloc_copied_plasma
+/**
  * @brief     deallocate copied plasma arrays, helper routine
  *
- * @param [in] PlasmaPtr  xcopy 
+ * @param [in] PlasmaPtr  xcopy
  * @return 00
  *
  *
@@ -513,14 +523,14 @@ dealloc_copied_plasma (xcopy)
 }
 
 /**********************************************************/
-/** @name      depcoef_overview_specific
+/**
  * @brief      gives populations of nconfig in each cell
  *
  * @param [in] int  version   0 gives number densities
- * @param [in] int  nconfig   
- * @param [in] WindPtr  w   
- * @param [in] char  rootname[]   
- * @param [in] int  ochoice   
+ * @param [in] int  nconfig
+ * @param [in] WindPtr  w
+ * @param [in] char  rootname[]
+ * @param [in] int  ochoice
  * @return 0
  *
  * @details
@@ -620,15 +630,15 @@ depcoef_overview_specific (version, nconfig, w, rootname, ochoice)
 
 
 /**********************************************************/
-/** @name      level_popsoverview
- * @brief      is a routine which prints information about departure 
+/**
+ * @brief      is a routine which prints information about departure
  *   coefficients and level populations in a cell. There is probably a crossover
  *   between this and depcoef_overview
  *
- * @param [in] int  nplasma   
- * @param [in] WindPtr  w   
- * @param [in] char  rootname[]   
- * @param [in] int  ochoice   
+ * @param [in] int  nplasma
+ * @param [in] WindPtr  w
+ * @param [in] char  rootname[]
+ * @param [in] int  ochoice
  * @return 0
 
  *
@@ -662,7 +672,7 @@ level_popsoverview (nplasma, w, rootname, ochoice)
   if (f == NULL)
   {
     printf ("Error opening file!\n");
-    exit (1);
+    Exit (0);
   }
 
   xplasma = &plasmamain[nplasma];
@@ -704,16 +714,16 @@ level_popsoverview (nplasma, w, rootname, ochoice)
 }
 
 /**********************************************************/
-/** @name      level_emissoverview
+/**
  * @brief      Routine to print level emissivities in each cell.
  *   The emissivity is the quantity
  *   A21 * n2 * beta_sobolev * nu_21 * H * volume
  *   And thus has units of ergs/s
  *
- * @param [in] int  nlev   
- * @param [in] WindPtr  w   
- * @param [in] char  rootname[]   
- * @param [in] int  ochoice   
+ * @param [in] int  nlev
+ * @param [in] WindPtr  w
+ * @param [in] char  rootname[]
+ * @param [in] int  ochoice
  * @return 0
  *
  **********************************************************/
@@ -786,14 +796,14 @@ level_emissoverview (nlev, w, rootname, ochoice)
 
 
 /**********************************************************/
-/** @name      level_escapeoverview
- * @brief      Routine to print escape probabilities for a given 
+/**
+ * @brief      Routine to print escape probabilities for a given
  *   Balmer line in each cell.
  *
- * @param [in] int  nlev   
- * @param [in] WindPtr  w   
- * @param [in] char  rootname[]   
- * @param [in] int  ochoice   
+ * @param [in] int  nlev
+ * @param [in] WindPtr  w
+ * @param [in] char  rootname[]
+ * @param [in] int  ochoice
  * @return 0
  *
  **********************************************************/
@@ -838,7 +848,7 @@ level_escapeoverview (nlev, w, rootname, ochoice)
 
   nline--;
 
-  lambda = (C / lin_ptr[nline]->freq) * 1e8;
+  lambda = (VLIGHT / lin_ptr[nline]->freq) * 1e8;
 
   strcpy (name, "");
   sprintf (name, "Balmer series P_escapes for Level %i, Lambda %.1f", nlev, lambda);
@@ -878,14 +888,14 @@ level_escapeoverview (nlev, w, rootname, ochoice)
 
 
 /**********************************************************/
-/** @name      level_tauoverview
- * @brief      Routine to print taus for a given 
+/**
+ * @brief      Routine to print taus for a given
  *   Balmer line in each cell.
  *
- * @param [in] int  nlev   
- * @param [in] WindPtr  w   
- * @param [in] char  rootname[]   
- * @param [in] int  ochoice   
+ * @param [in] int  nlev
+ * @param [in] WindPtr  w
+ * @param [in] char  rootname[]
+ * @param [in] int  ochoice
  * @return 0
  *
  **********************************************************/
@@ -931,7 +941,7 @@ level_tauoverview (nlev, w, rootname, ochoice)
 
   nline--;
 
-  lambda = (C / lin_ptr[nline]->freq) * 1e8;
+  lambda = (VLIGHT / lin_ptr[nline]->freq) * 1e8;
 
   strcpy (name, "");
   sprintf (name, "Balmer series taus for Level %i, Lambda %.1f", nlev, lambda);

@@ -1,15 +1,22 @@
+/***********************************************************/
+/** @file  random.c
+ *  @author ksl
+ * @date   May, 2018
+ *
+ * @brief  Various general purpose rouines for generating random
+ * numbers including varous routines for generating 
+ * randomly oriented vectors
+ *
+***********************************************************/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-
-
-#include "atomic.h"
-#include "python.h"
-
 #include <gsl/gsl_rng.h>
 #include <gsl/gsl_randist.h>
 
-
+#include "atomic.h"
+#include "python.h"
 
 /* A basis is defined such that if x is a 3 vector as expressed an unprimed cartesian coordinate
    frame, and if y is the same vector in some rotated frame, then
@@ -17,22 +24,32 @@
    Basis is defined in python.h
  */
 
-/* randvec returns the 3 vector "a" whose direction will be random and 
-   whose length will be r.
+gsl_rng *rng;                   // pointer to a global random number generator
 
 
-   Notes: Routine was incorrect for a long time.  Fixed by ck  June 1998
-
-   The current routine, as corrected by CK, creates a random vector
-   in spherical coordinates, noting that an element of solid angle i
-   s sin(theta) d(theta) d(phi).  But sin(theta)d(theta) is simply 
-   -d(cos(theta)), and so a random vector is created by generating
-   a random number between 0 and 2 PI representing phi and between
-   -1 and 1 representing cos(phi).   
-
- */
-
-gsl_rng * rng;  // pointer to a global random number generator
+/**********************************************************/
+/** @name      randvec
+ *
+ * @brief GEt a 3 vector "a" whose direction will be random and whose
+ * lenght will be r
+ *
+ * @param [out] double a[] The resulting 3 vector      
+ * @param [in] double  r   desired radius of the vector
+ * @return     Always retursn 0                       
+ *
+ * @details
+ *
+ * The current routine creates a random vector
+ * in spherical coordinates, noting that an element of solid angle i
+ * s sin(theta) d(theta) d(phi).  But sin(theta)d(theta) is simply 
+ * -d(cos(theta)), and so a random vector is created by generating
+ * a random number between 0 and 2 PI representing phi and between
+ * -1 and 1 representing cos(phi).   
+ *
+ * ### Notes ###
+ *
+ *
+ **********************************************************/
 
 
 int
@@ -42,12 +59,10 @@ randvec (a, r)
 
   double costheta, sintheta, phi, sinphi, cosphi;
 
-//  phi = 2. * PI * (rand () / MAXRAND); //DONE
-  phi = 2. * PI *random_number(0.0,1.0);
+  phi = 2. * PI * random_number (0.0, 1.0);
   sinphi = sin (phi);
   cosphi = cos (phi);
-//  costheta = 2. * (rand () / MAXRAND) - 1.; //DONE - this makes a number from -1 to 1
-  costheta = random_number(-1.0,1.0);
+  costheta = random_number (-1.0, 1.0);
   sintheta = sqrt (1. - costheta * costheta);
   a[0] = r * cosphi * sintheta;
   a[1] = r * sinphi * sintheta;
@@ -74,6 +89,38 @@ double zzz[] = { 0.0, 0.0, 1.0 };
 
 int init_vcos = 0;
 
+/**********************************************************/
+/** @name      randvec
+ *
+ * @brief Create a photon direction "lmn" in the hemisphere with the 
+ * vector "north pointin go the north pole according to the Eddingon
+ * approximation
+ *
+ * @param [out] double lmn[] The resulting 3 vector containg the correct 
+ * direction cosines      
+ * @param [in] double  north [] The direction  of local north
+ * @return     Always retursn 0                       
+ *
+ * @details
+ *
+ * Create a photon direction "lmn" in the hemisphere with the vector "north" pointing to the "north
+ * pole" pole of the hemispere in the case where the photon is originating in a photosphere.
+ * Another way of saying this is that north is the normal to surface at the point
+ * at which the photon originates.  
+ * 
+ * The photon directions will be distributed according to the Eddington 
+ * approximation
+ *
+ *
+ * ### Notes ###
+ * The routine calls vcos which actually containes the Eddinggton 
+ * approximation (aka linear limb darkening)
+ *
+ * Jumps were added to include more points near 90 degrees.
+ *
+ *
+ **********************************************************/
+
 int
 randvcos (lmn, north)
      double lmn[], north[];
@@ -87,9 +134,10 @@ randvcos (lmn, north)
   double vcos (), cdf_get_rand ();
   double phi;
 
-  /* XXX - It seems unlikely that jumps are necessary with the current verisonof 
-   * pdf_gen_gen_from_func, which does not resample the orginal grid.  But this
-   * should be checked.  171012 ksl 
+  /*** 
+   * ### Programming Comment ###
+   * pdf_gen_from_func still uses jumps, so this is OK, but it may not be
+   * necessary as PDFSTEPS has been increased to 10000 in cdf.c  180715 ksl.
    */
 
   if (init_vcos == 0)
@@ -113,8 +161,7 @@ randvcos (lmn, north)
 
 // The is the correct approach to generating a uniform azimuthal distribution
 
-//  phi = 2. * PI * (rand () / MAXRAND); //DONE
-  phi = 2. * PI * random_number(0.0,1.0);
+  phi = 2. * PI * random_number (0.0, 1.0);
   l = q * cos (phi);
   m = q * sin (phi);
 
@@ -149,7 +196,30 @@ this is simple. Otherwise one must do a coordinate rotation. */
 }
 
 
-/* This is the appropriate distribution for Eddington limb darkining I believe ksl 97july06 */
+
+/**********************************************************/
+/** @name      vcos
+ *
+ * @brief the appropriate distribution for Eddington limb darkininge 
+ *
+ * @param [in] double x  cos theta 
+ * @return     The probablity density for emiingin    
+ *
+ * @details
+ *
+ * approximation
+ *
+ *
+ * ### Notes ###
+ * The routine calls vcos which actually containes the Eddinggton 
+ * approximation (aka linear limb darkening)
+ *
+ * See Hubeny & Mihalas Equation 17.17  
+ *
+ *
+ *
+ **********************************************************/
+
 
 double
 vcos (x)
@@ -184,12 +254,12 @@ vcos (x)
 
 
 int
-	init_rand(seed)
-		int seed;
+init_rand (seed)
+     int seed;
 {
-    rng = gsl_rng_alloc(gsl_rng_mt19937); //Set the random number generator to the GSL Meursenne twirster
-	gsl_rng_set(rng, seed);
-	return(0);
+  rng = gsl_rng_alloc (gsl_rng_mt19937);        //Set the random number generator to the GSL Meursenne twirster
+  gsl_rng_set (rng, seed);
+  return (0);
 }
 
 
@@ -207,11 +277,11 @@ int
  * 2/18	-	Written by NSH
 ***********************************************************/
 
-			
-double random_number(double min, double max)
 
+double
+random_number (double min, double max)
 {
-	double num = gsl_rng_uniform_pos(rng);
-	double x = min + ((max - min) * num);
-	return(x);
-}		
+  double num = gsl_rng_uniform_pos (rng);
+  double x = min + ((max - min) * num);
+  return (x);
+}

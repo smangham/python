@@ -17,6 +17,7 @@
 #include <sys/time.h>
 #include <time.h>
 
+#include "log.h"
 
 /*
 Return the time in seconds since the timer was initiated
@@ -94,4 +95,68 @@ get_time (curtime)
   strncpy (curtime, ctime (&tloc), 24);
   curtime[24] = '\0';           // We need to end the string properly
   return (0);
+}
+
+
+
+
+/**********************************************************/
+/**
+ * @brief initialise a timeval structure with the current time
+ *
+ * param[in] void
+ *
+ * @return struct timeval timer_t0 The current CPU time as a timespec structure
+ *
+ * ###Notes###
+ *
+ * Note that NULL is passed as the second argument to gettimeofday as we most
+ * likely do not require to know the time zone.
+ *
+ **********************************************************/
+
+
+struct timeval
+init_timer_t0 (void)
+{
+  struct timeval timer_t0;
+
+  gettimeofday (&timer_t0, NULL);
+
+  return timer_t0;
+}
+
+
+
+
+/**********************************************************/
+/**
+ * @brief Calculate the time difference between a previous timer and print the
+ *        duration and a message to the screen
+ *
+ * @param[in] char *msg    A descriptive measure to print with the time difference
+ * @param[in] struct timespec timer_t0  An initialised timer to calculate the time difference from
+ *
+ * @return void
+ *
+ * The time difference between this function being called and when the timer
+ * time_t0 was initialised will be printed to screen down to nanosecond resolution.
+ * The time difference will be preceded by the message provided by *msg.
+ *
+ * ###Notes###
+ *
+ * Note that NULL is passed as the second argument to gettimeofday as we most
+ * likely do not require to know the time zone.
+ *
+ **********************************************************/
+
+void
+print_timer_duration (char *msg, struct timeval timer_t0)
+{
+  double td;
+  struct timeval timer_t1;
+
+  gettimeofday (&timer_t1, NULL);
+  td = (timer_t1.tv_sec - timer_t0.tv_sec) + (timer_t1.tv_usec - timer_t0.tv_usec) * 1e-6;
+  Log ("%s: %f seconds\n", msg, td);
 }

@@ -18,11 +18,8 @@
  * winds, and some of the variables use those that are associated with stellar
  * winds.  With domains, it would be clearer to give them there own variable
  * names.  Note that the maximum radius is not, as it should be defined here, but
- * rather relies on geo.rmax.  This should be fixed.
+ * rather relies on zdmo[ndom].rmax.  This should be fixed.
  * 
- * @bug XXXX ksl 1802 - The maximum radius of the wind here seems to be defined externally
- * and it is not clear that this is what one wants in a situation with multiple domains
- * Conisder adding an maximu radius as an imput variable.  Note that this may have been fixed
  ***********************************************************/
 
 
@@ -62,35 +59,33 @@ get_homologous_params (ndom)
   Log ("Creating a homolgous wind model in domain %d\n", ndom);
 
 
- /* Initialize some of the relevant parameters */
+  /* Initialize some of the relevant parameters */
 
 
   one_dom->stellar_wind_mdot = 100.;
   one_dom->rmin = geo.rstar;
+  one_dom->rmax = 2.2464e15;
   one_dom->cl_v_zero = 200e5;
   one_dom->cl_beta = 7.0;
 
   one_dom->stellar_wind_mdot /= MSOL / YR;
-  rddoub ("homologous.boundary_mdot(msol/yr)", &one_dom->stellar_wind_mdot);
+  rddoub ("Homologous.boundary_mdot(msol/yr)", &one_dom->stellar_wind_mdot);
   one_dom->stellar_wind_mdot *= MSOL / YR;
 
-/* XXXX ksl 1802 - The maximum radius of the wind here seems to be defined externally
- * and it is not clear that this is what one wants in a situation with multiple domains
- * Conisder adding an maximu radius as an imput variable
- */
 
+  rddoub ("Homologous.radmin(cm)", &one_dom->rmin);     /*Radius where wind begins */
+  rddoub ("Homologous.radmax(cm)", &one_dom->rmax);     /*Radius where wind ends */
 
-  rddoub ("homologous.radmin(cm)", &one_dom->rmin);     /*Radius where wind begins */
   if (one_dom->rmin < geo.rstar)
   {
     Error ("get_homologous_params: It is unreasonable to have the wind start inside the star!\n");
-    Log ("Setting geo.rmin to geo.rstar\n");
+    Log ("Setting one_dom->rmin to geo.rstar\n");
     one_dom->rmin = geo.rstar;
   }
   one_dom->cl_rmin = one_dom->rmin;
 
-  rddoub ("homologous.vbase(cm)", &one_dom->cl_v_zero); /* Velocity at base of the wind */
-  rddoub ("homologous.density_exponent", &one_dom->cl_beta);    /* Density law exponent */
+  rddoub ("Homologous.vbase(cm)", &one_dom->cl_v_zero); /* Velocity at base of the wind */
+  rddoub ("Homologous.density_exponent", &one_dom->cl_beta);    /* Density law exponent */
 
 
   /* Assign the generic parameters for the wind the generic parameters of the wind */

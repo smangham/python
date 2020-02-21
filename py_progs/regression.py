@@ -74,6 +74,7 @@ import os
 import shutil
 import py_error
 import balmer_decrement 
+import regression_check
 
 
 
@@ -110,7 +111,11 @@ def sum_errors(root='1d_sn'):
         errors[i]=errors[i].strip()
         words=errors[i].split(' -- ')
         error_names.append(words[1])
-        error_counts.append(int(words[0]))
+        try:
+            error_counts.append(int(words[0]))
+        except ValueError:
+            print('Error:sum_errors: %s in root %s' % (errors[i],root))
+            error_counts.append(-999)
         i+=1
 
     # print(errors)
@@ -210,8 +215,10 @@ def doit(version='py',pf_dir='',out_dir='',np=3,outputfile='Summary.txt'):
 		
     if os.path.isdir(pf_dir):
         pf_files=glob(pf_dir+'/*pf')
+        txt_files=glob(pf_dir+'/*.txt')
     elif os.path.isdir('%s/examples/%s' % (PYTHON,pf_dir)):
         pf_files=glob('%s/examples/%s/*pf' % (PYTHON,pf_dir))
+        txt_files=glob('%s/examples/%s/*.txt' % (PYTHON,pf_dir))
     else:
         print('Error: The pf directory %s does not appear to exist' % pf_dir)
         return
@@ -223,7 +230,7 @@ def doit(version='py',pf_dir='',out_dir='',np=3,outputfile='Summary.txt'):
     for one in pf_files:
         if one.count('.out.pf')==0:
             select.append(one)
-    pf_files=select
+    pf_files=sorted(select)  # Assure that files are executed in alphabeticall order
 
     if len(pf_files)==0:
         print ('No input files found for %s search' % (pf_dir+'/*pf'))
@@ -249,6 +256,11 @@ def doit(version='py',pf_dir='',out_dir='',np=3,outputfile='Summary.txt'):
             command='mpirun -np %d %s %s >%s.stdout.txt' % (np,version,pf,root_name)
         commands.append(command)
         root_names.append(root_name)
+
+    # get any text files if any
+
+    for one in txt_files:
+        shutil.copy(one,out_dir)
     			
 
     print('The commands that will be executed will be:')
@@ -294,7 +306,7 @@ def doit(version='py',pf_dir='',out_dir='',np=3,outputfile='Summary.txt'):
 
     # Return to the place where the code was made from
     os.chdir(cwd)
-    return
+    return out_dir
 	
 def run_cmds(commands,root_names,outputfile):
     f=open(outputfile,'a')
@@ -355,6 +367,11 @@ def py_hydro(version,pf_dir,outputfile):
               than previously.  Special regression tests need to
               be isolated from the internal logic of doit so they
               can be added/removed easily.
+    2908 kdl  Eliminated the checks for a difference in heating and
+              and cooling rates.  If this is important, a check of
+              these should be done in regression_checks, and the 
+              check should be made between this run and a previous
+              run, not one against a file made in the distant past.
     '''
 
     out_dir=os.getcwd()
@@ -374,42 +391,46 @@ def py_hydro(version,pf_dir,outputfile):
             shutil.copy(one,out_dir)
 
     root_name=['py_hydro']
-    hydro_command=['%s -z %s  >%s.stdout.txt' % (version,root_name[0]+'.pf',root_name[0])]
+    hydro_command=['%s %s  >%s.stdout.txt' % (version,root_name[0]+'.pf',root_name[0])]
     run_cmds(hydro_command,root_name,outputfile)
 	
     cmd='cp py_hydro.wind_save py_hydro_restart.wind_save'
     subprocess.Popen(cmd,shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+
+    cmd='cp py_hydro.spec_save py_hydro_restart.spec_save'
+    subprocess.Popen(cmd,shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
 	
-    cmd='diff py_heatcool.dat model_heatcool.dat'
-    proc=subprocess.Popen(cmd,shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-    stdout,stderr=proc.communicate()
+#OLD    cmd='diff py_heatcool.dat model_heatcool.dat'
+#OLD    proc=subprocess.Popen(cmd,shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+#OLD    stdout,stderr=proc.communicate()
 	
-    if len(stdout):
-        string="py_heatcool.dat has changed from model - important to investigate"
-    else:
-        string="py_heatcool.dat is unchanged - test passed"
-    print(string)
-    f1=open('Summary.txt','a')
-    f1.write('%s\n'% string)
-    f1.close()
+#OLD    if len(stdout):
+#OLD        string="py_heatcool.dat has changed from model - important to investigate"
+#OLD    else:
+#OLD        string="py_heatcool.dat is unchanged - test passed"
+#OLD    print(string)
+#OLD    f1=open('Summary.txt','a')
+#OLD    f1.write('%s\n'% string)
+#OLD    f1.close()
 	
 		
     root_name=['py_hydro_restart']
-    hydro_command=['%s -z -r %s  >%s.stdout.txt' % (version,root_name[0]+'.pf',root_name[0])]
+    # hydro_command=['%s -z -r %s  >%s.stdout.txt' % (version,root_name[0]+'.pf',root_name[0])]
+    hydro_command=['%s -r %s  >%s.stdout.txt' % (version,root_name[0]+'.pf',root_name[0])]
     run_cmds(hydro_command,root_name,outputfile)
 	
-    cmd='diff py_heatcool.dat model_restart_heatcool.dat'
-    proc=subprocess.Popen(cmd,shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-    stdout,stderr=proc.communicate()
+#OLD    cmd='diff py_heatcool.dat model_restart_heatcool.dat'
+#OLD    proc=subprocess.Popen(cmd,shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+#OLD    stdout,stderr=proc.communicate()
 	
-    if len(stdout):
-        string="restart py_heatcool.dat has changed from model - important to investigate"
-    else:
-        string="restart py_heatcool.dat is unchanged - test passed"
-    print(string)
-    f1=open('Summary.txt','a')
-    f1.write('%s\n'% string)
-    f1.close()
+#OLD    if len(stdout):
+#OLD        string="restart py_heatcool.dat has changed from model - important to investigate"
+#OLD    else:
+#OLD        string="restart py_heatcool.dat is unchanged - test passed"
+#OLD    print(string)
+#OLD    f1=open('Summary.txt','a')
+#OLD    f1.write('%s\n'% string)
+#OLD    f1.close()
 
 
     return
@@ -452,7 +473,11 @@ def steer(argv):
         return
 
     for one in words:
-        doit(version=one,pf_dir=pf_dir,out_dir=out_dir,np=np,outputfile='Summary.txt')
+        q=doit(version=one,pf_dir=pf_dir,out_dir=out_dir,np=np,outputfile='Summary.txt')
+
+    # Now run regression checks between this run and the last time the routine was run
+
+    regression_check.doit(q)
 
 
 

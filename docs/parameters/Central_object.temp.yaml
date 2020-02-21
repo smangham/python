@@ -1,9 +1,10 @@
 name: Central_object.temp
 description: |
-  Multi-line description, must keep indentation.
-type: rddoub
-unit: None
-values: Condition e.g. greater than 0 or list e.g. [1, 2, 5]
+  Temperature of the central star. Physically, this is used in blackbody radiation, shock heating and disk heating in
+  YSO models. It is also used to help determine the frequency bands in which photons are emitted.
+type: Double
+unit: Kelvin
+values: Greater than zero
 parent:
-  parameter: Condition e.g. greater than 0 or list e.g. [1, 2, 5]
+  System_type: [star, cv]
 file: setup_star_bh.c

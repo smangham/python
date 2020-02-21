@@ -7,16 +7,17 @@
  * @brief  The collection of routines needed to define a Shlossman-Vitello wind 
  *
  ***********************************************************/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <string.h>
 
 #include "atomic.h"
 #include "python.h"
 
 int sdom;
 int sv_zero_r_ndom;
-
 
 
 /**********************************************************/
@@ -41,29 +42,30 @@ get_sv_wind_params (ndom)
      int ndom;
 {
   double windmin, windmax, theta_min, theta_max;
+  char answer[LINELENGTH];
 
   Log ("Creating an SV wind in domain %d\n", ndom);
 
   zdom[ndom].wind_mdot = 0.1 * geo.disk_mdot / (MSOL / YR);     // Convert to MSOL/YR for easy of data entry
-  rddoub ("wind.mdot(msol/yr)", &zdom[ndom].wind_mdot);
+  rddoub ("Wind.mdot(msol/yr)", &zdom[ndom].wind_mdot);
   zdom[ndom].wind_mdot *= MSOL / YR;
 
 
-  zdom[ndom].sv_rmin = 2.8e9;
-  zdom[ndom].sv_rmax = 8.4e9;
   zdom[ndom].sv_thetamin = 20. / RADIAN;
   zdom[ndom].sv_thetamax = 65. / RADIAN;
   zdom[ndom].sv_gamma = 1.;
-  zdom[ndom].sv_v_zero = 6e5;   /* velocity at base of wind */
+  /* JM -- this can be altered in advanced mode below */
+  zdom[ndom].sv_v_zero_mode = FIXED;
+  zdom[ndom].sv_v_zero = 6e5;
   zdom[ndom].sv_r_scale = 7e10; /*Accleration length scale for wind */
   zdom[ndom].sv_alpha = 1.5;    /* Accleration scale exponent */
   zdom[ndom].sv_v_infinity = 3; /* Final speed of wind in units of escape velocity */
   zdom[ndom].sv_lambda = 0.0;   /* Mass loss rate exponent */
 
-  windmin = zdom[ndom].sv_rmin / geo.rstar;
-  windmax = zdom[ndom].sv_rmax / geo.rstar;
-  rddoub ("sv.diskmin(units_of_rstar)", &windmin);
-  rddoub ("sv.diskmax(units_of_rstar)", &windmax);
+  windmin = 4;
+  windmax = 12;
+  rddoub ("SV.diskmin(units_of_rstar)", &windmin);
+  rddoub ("SV.diskmax(units_of_rstar)", &windmax);
 
 
   zdom[ndom].sv_rmin = windmin * geo.rstar;
@@ -71,16 +73,32 @@ get_sv_wind_params (ndom)
 
   theta_min = zdom[ndom].sv_thetamin * RADIAN;
   theta_max = zdom[ndom].sv_thetamax * RADIAN;
-  rddoub ("sv.thetamin(deg)", &theta_min);
-  rddoub ("sv.thetamax(deg)", &theta_max);
+  rddoub ("SV.thetamin(deg)", &theta_min);
+  rddoub ("SV.thetamax(deg)", &theta_max);
   zdom[ndom].sv_thetamin = theta_min / RADIAN;
   zdom[ndom].sv_thetamax = theta_max / RADIAN;
 
-  rddoub ("sv.mdot_r_exponent", &zdom[ndom].sv_lambda); /* Mass loss rate exponent */
-  rddoub ("sv.v_infinity(in_units_of_vescape", &zdom[ndom].sv_v_infinity);      /* Final speed of wind in units of escape velocity */
+  rddoub ("SV.mdot_r_exponent", &zdom[ndom].sv_lambda); /* Mass loss rate exponent */
+  rddoub ("SV.v_infinity(in_units_of_vescape", &zdom[ndom].sv_v_infinity);      /* Final speed of wind in units of escape velocity */
 
-  rddoub ("sv.acceleration_length(cm)", &zdom[ndom].sv_r_scale);        /*Accleration length scale for wind */
-  rddoub ("sv.acceleration_exponent", &zdom[ndom].sv_alpha);    /* Accleration scale exponent */
+  rddoub ("SV.acceleration_length(cm)", &zdom[ndom].sv_r_scale);        /*Acceleration length scale for wind */
+  rddoub ("SV.acceleration_exponent", &zdom[ndom].sv_alpha);    /* Acceleration scale exponent */
+  rddoub ("SV.gamma(streamline_skew;1=usually)", &zdom[ndom].sv_gamma); /* Parameter controlling how concentrated the streamlines
+                                                                           are toward theta_min.  Large values concentrate toward
+                                                                           the polls, must be greater than 0 */
+  if (zdom[ndom].sv_gamma <= 0)
+  {
+    Error ("SV.gamma must be greater than 0. Large values skew streamlines to poles, small values to equator\n");
+    exit (0);
+  }
+
+  /* allow the user to pick whether they set v0 by a fixed value or by the sound speed */
+  strcpy (answer, "fixed");
+  zdom[ndom].sv_v_zero_mode = rdchoice ("SV.v_zero_mode(fixed,sound_speed)", "0,1", answer);
+  if (zdom[ndom].sv_v_zero_mode == FIXED)
+    rddoub ("SV.v_zero(cm/s)", &zdom[ndom].sv_v_zero);
+  else if (zdom[ndom].sv_v_zero_mode == SOUND_SPEED)
+    rddoub ("SV.v_zero(multiple_of_sound_speed)", &zdom[ndom].sv_v_zero);
 
 /* Assign the generic parameters for the wind the generic parameters of the wind */
 
@@ -103,7 +121,9 @@ get_sv_wind_params (ndom)
 
   sdom = ndom;
 
-  zdom[ndom].mdot_norm = qromb (sv_wind_mdot_integral, zdom[ndom].sv_rmin, zdom[ndom].sv_rmax, 1e-6);
+//  zdom[ndom].mdot_norm = qromb (sv_wind_mdot_integral, zdom[ndom].sv_rmin, zdom[ndom].sv_rmax, 1e-6);
+  zdom[ndom].mdot_norm = num_int (sv_wind_mdot_integral, zdom[ndom].sv_rmin, zdom[ndom].sv_rmax, 1e-6);
+
   return (0);
 }
 
@@ -131,13 +151,13 @@ sv_velocity (x, v, ndom)
      int ndom;
 {
   double r, rzero, theta, speed;
-  double ldist, zzz, v_escape, vl;
+  double ldist, zzz, v_escape, vl = 0.0;
   struct photon ptest;
   double xtest[3];
   double s;
-  double ds_to_disk ();
+  double vzero;
 
-  zzz = v_escape = -99.;
+  zzz = v_escape = vzero = -99.;
 
 
   rzero = sv_find_wind_rzero (ndom, x);
@@ -164,30 +184,34 @@ sv_velocity (x, v, ndom)
     ldist = length (x);
   }
 
+  /* Depending on the mode, we can set the initial velocity as fixed or by the sound speed. See #482. */
+  if (zdom[ndom].sv_v_zero_mode == FIXED)
+    vzero = zdom[ndom].sv_v_zero;
+  else
+    vzero = kn_vzero (rzero) * zdom[ndom].sv_v_zero;
 
-  vl = zdom[ndom].sv_v_zero;
   if (ldist > 0)
   {
     zzz = pow (ldist / zdom[ndom].sv_r_scale, zdom[ndom].sv_alpha);
 
     if (rzero < geo.rstar)
-      v_escape = sqrt (2. * G * geo.mstar / geo.rstar);
+      v_escape = sqrt (2. * GRAV * geo.mstar / geo.rstar);
     else
-      v_escape = sqrt (2. * G * geo.mstar / rzero);
+      v_escape = sqrt (2. * GRAV * geo.mstar / rzero);
 
-    vl = zdom[ndom].sv_v_zero + (zdom[ndom].sv_v_infinity * v_escape - zdom[ndom].sv_v_zero) * zzz / (1. + zzz);
+    vl = vzero + (zdom[ndom].sv_v_infinity * v_escape - vzero) * zzz / (1. + zzz);
   }
 
   v[0] = vl * sin (theta);
 
   if (r > 0)
-    v[1] = sqrt (G * geo.mstar * rzero) / r;
+    v[1] = sqrt (GRAV * geo.mstar * rzero) / r;
   else
     v[1] = 0;
 
   v[2] = vl * cos (theta);
 
-  if (x[2] < 0)                 
+  if (x[2] < 0)
     v[2] *= (-1);
 
   /* At this point we have calculated the velocity in the xz plane, which
@@ -373,7 +397,10 @@ sv_find_wind_rzero (ndom, p)
 
   /* change the global variable sv_zero_r_ndom before we call zbrent */
   sv_zero_r_ndom = ndom;
-  x = zbrent (sv_zero_r, zdom[ndom].sv_rmin, zdom[ndom].sv_rmax, 100.);
+//  x = zbrent (sv_zero_r, zdom[ndom].sv_rmin, zdom[ndom].sv_rmax, 100.);
+  x = zero_find (sv_zero_r, zdom[ndom].sv_rmin, zdom[ndom].sv_rmax, 100.);
+
+
   return (x);
 
 }
@@ -437,8 +464,7 @@ sv_zero_init (p)
  **********************************************************/
 
 double
-sv_zero_r (r)
-     double r;
+sv_zero_r (double r, void *params)
 {
   double theta;
   double rho, rho_guess;
@@ -505,6 +531,7 @@ sv_theta_wind (ndom, r)
  * @brief      The integrand required to calculate the normalization factor between the global mass loss rate and the mass loss per unit area at a particular place on the disk
  *
  * @param [in] double  r   A position (radius) on the disk
+ * @param [in] void  params   An extra (unused) variable to make it paletable for the gsl integrator
  * @return     The value of the integrand 
  *
  * The SV model is defined in terms of a mass loss rate per unit area.  mdot is the total mass loss rate from the disk.  In order to connect the local and global rates one
@@ -517,8 +544,7 @@ sv_theta_wind (ndom, r)
  **********************************************************/
 
 double
-sv_wind_mdot_integral (r)
-     double r;
+sv_wind_mdot_integral (double r, void *params)
 {
   double x;
 

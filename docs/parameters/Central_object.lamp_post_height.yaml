@@ -1,0 +1,9 @@
+name: Central_object.lamp_post_height
+description: |
+  The distance above and below the disk plane of the two point sources used in the lamp-post model.
+type: Double
+unit: :ref:`Central_object.radius`
+values: Greater than 0
+parent:
+  Central_object.geometry_for_source: [lamp_post]
+file: setup_star_bh.c

@@ -5,10 +5,10 @@
  * @date   May, 2018
  *
  * @brief
- * consolidates an approach to providing extra diagnositcs
- * for debugging python, Some of the diagnostics allow one to change
- * defaults in python while others allow traking of and contains initialization routines
- * that control which diagnosics are a
+ * This routine consolidates an approach to providing extra diagnostics
+ * for debugging python. It also
+ * contains initialization routines
+ * that control which diagnosics are tracked.
  *
  * The first few functions are associated with gather information about what
  * one wants to track
@@ -27,9 +27,10 @@
  *
  *  * (0) check that one of the existing diagnostics is insuffient for your needs
  *  * (1) add a routine here that writes to the diagnostic file.
- *  * (2) add a rdpar statement in get_extra_diagnostics
- *  * (3) Assure that your new routine has the appropriate doxygne description,
- *  * (4) Add a yaml file for the new rdpare statemnt), and
+ *  * (2) add a rdchoice statement in get_extra_diagnostics that allows you to track
+ *  this diagnositic
+ *  * (3) Assure that your new routine has the appropriate doxygen description,
+ *  * (4) Add a yaml file for the new rdpar statement), and
  *  * (5) call the routine with the approriate condidtions from wherever you wish.
  *
  * As written, you must put your routine here.  This is done on purpose
@@ -45,21 +46,21 @@
  * A current example is print_dvds_info, which is totally contained within
  * gradv.c
  *
- * This approached was adopted, based onthe discution isssue #338
+ * This approached was adopted, based onthe discussion isssue #338
  * A detailed look at the subroutines indicates that this, especially the
  * part having to do with writing to a single diagnostic file is a work
  * in progress.
  *
- * Right now there are a numer of very similar routines, some of
+ * Right now there are a number of very similar routines, some of
  * which might be combined.
  *
+ * Note that as most of these routines are currently writen, one should
+ * check whether the that appropriate flag is set, before calling 
+ * the routine.  Otherwise, one may write to a file that has not been
+ * opened.
  *
  *
  ***********************************************************/
-
-
-
-
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -70,10 +71,8 @@
 #include "python.h"
 
 
-
-
 /**********************************************************/
-/** @name      get_standard_care_factors
+/**
  * @brief      get inputs that provides more control over how the program is
  *   run
  *
@@ -110,6 +109,7 @@ int
 get_standard_care_factors ()
 {
   int istandard;
+  char answer[LINELENGTH];
   istandard = 1;
   SMAX_FRAC = 0.5;
   DENSITY_PHOT_MIN = 1.e-10;
@@ -117,24 +117,25 @@ get_standard_care_factors ()
   /* 141116 - ksl - Made care factors and advanced command as this is clearly somethng that is diagnostic */
 
   if (modes.iadvanced)
-    {
-      rdint ("@Diag.use_standard_care_factors(1=yes)", &istandard);
+  {
+    strcpy (answer, "no");
+    istandard = rdchoice ("@Diag.use_standard_care_factors(yes,no)", "1,0", answer);
 
-      if (!istandard)
-	{
-	  rddoub ("@Diag.fractional_distance_photon_may_travel", &SMAX_FRAC);
-	  rddoub ("@Diag.lowest_ion_density_for_photoabs", &DENSITY_PHOT_MIN);
-	  rdint ("@Diag.keep_photoabs_in_final_spectra(1=yes)",
-		 &modes.keep_photoabs);
-	}
+    if (!istandard)
+    {
+      rddoub ("@Diag.fractional_distance_photon_may_travel", &SMAX_FRAC);
+      rddoub ("@Diag.lowest_ion_density_for_photoabs", &DENSITY_PHOT_MIN);
+      strcpy (answer, "no");
+      modes.keep_photoabs = rdchoice ("@Diag.keep_photoabs_in_final_spectra(yes,no)", "1,0", answer);
     }
+  }
   return (0);
 }
 
 
 
 /**********************************************************/
-/** @name      get_extra_diagnostics
+/**
  * @brief      Allows the user to specify what extra diagnositcs
  * to write out
  *
@@ -157,29 +158,42 @@ get_standard_care_factors ()
 int
 get_extra_diagnostics ()
 {
+  char answer[LINELENGTH];
   if (modes.iadvanced == 0)
     Error ("Getting extra_diagnostics but advanced mode is off!\n");
 
   Log ("get_extra_diagnostics: Getting extra diagnostics as requested...\n");
 
   /* read the options. */
-  rdint ("@Diag.save_cell_statistics", &modes.save_cell_stats);
-  rdint ("@Diag.keep_ioncycle_windsaves", &modes.keep_ioncycle_windsaves);
-  rdint ("@Diag.make_ioncycle_tables", &modes.make_tables);
-  rdint ("@Diag.save_photons", &modes.save_photons);
-  rdint ("@Diag.save_extract_photons", &modes.save_extract_photons);
-  rdint ("@Diag.print_dvds_info", &modes.print_dvds_info);
-  rdint ("@Diag.track_resonant_scatters", &modes.track_resonant_scatters);
+  strcpy (answer, "no");
+  modes.save_cell_stats = rdchoice ("@Diag.save_cell_statistics(yes,no)", "1,0", answer);
 
-  if (modes.save_cell_stats || modes.save_photons
-      || modes.save_extract_photons | modes.track_resonant_scatters)
-    {
-      modes.extra_diagnostics = 1;
-    }
+  strcpy (answer, "no");
+  modes.keep_ioncycle_windsaves = rdchoice ("@Diag.keep_ioncycle_windsaves(yes,no)", "1,0", answer);
+
+  strcpy (answer, "no");
+  modes.make_tables = rdchoice ("@Diag.make_ioncycle_tables(yes,no)", "1,0", answer);
+
+  strcpy (answer, "no");
+  modes.save_photons = rdchoice ("@Diag.save_photons(yes,no)", "1,0", answer);
+
+  strcpy (answer, "no");
+  modes.save_extract_photons = rdchoice ("@Diag.save_extract_photons(yes,no)", "1,0", answer);
+
+  strcpy (answer, "no");
+  modes.print_dvds_info = rdchoice ("@Diag.print_dvds_info(yes,no)", "1,0", answer);
+
+  strcpy (answer, "no");
+  modes.track_resonant_scatters = rdchoice ("@Diag.track_resonant_scatters(yes,no)", "1,0", answer);
+
+  if (modes.save_cell_stats || modes.save_photons || modes.save_extract_photons | modes.track_resonant_scatters)
+  {
+    modes.extra_diagnostics = 1;
+  }
   else
-    {
-      modes.extra_diagnostics = 0;
-    }
+  {
+    modes.extra_diagnostics = 0;
+  }
 
   return 0;
 }
@@ -189,13 +203,17 @@ get_extra_diagnostics ()
 
 
 int eplinit = 0;
-int pstatinit = 0; /// To say if we have checked to see if we need to log photons
-FILE *epltptr;		 /// Extra diagnostics file
+
+/// To say if we have checked to see if we need to log photons
+int pstatinit = 0;
+
+/// Extra diagnostics file
+FILE *epltptr;
 
 
 
 /**********************************************************/
-/** @name      init_extra_diagnostics
+/**
  * @brief      opon a file for writing out
  *  extra diagnostics.  In some cases reads a file
  *  that specifies in which cells ones wants diagnostics
@@ -220,50 +238,44 @@ FILE *epltptr;		 /// Extra diagnostics file
 int
 init_extra_diagnostics ()
 {
-  FILE *cellfile;		/*File that may or may not exist, pointing to cells we want to write out photon stats for */
-  int cell;			/*Temporary storage of cell to use */
+  FILE *cellfile;               /*File that may or may not exist, pointing to cells we want to write out photon stats for */
+  int cell;                     /*Temporary storage of cell to use */
 
   if (eplinit == 0 && modes.extra_diagnostics)
-    {
-      epltptr = fopen ("python.ext.txt", "w");
-      eplinit = 1;
-    }
+  {
+    epltptr = fopen ("python.ext.txt", "w");
+    eplinit = 1;
+  }
 
-  ncstat = 0;			/*Zero the counter for the number of cells to be tracked */
-  if (pstatinit == 0 && modes.save_cell_stats)	/* Check we havent already done this */
+  ncstat = 0;                   /*Zero the counter for the number of cells to be tracked */
+  if (pstatinit == 0 && modes.save_cell_stats)  /* Check we havent already done this */
+  {
+    cellfile = fopen ("diag_cells.dat", "r");   /*This is the file containing cells to track */
+    if (cellfile != NULL)       /*If there actually *is* a file read it */
     {
-      cellfile = fopen ("diag_cells.dat", "r");	/*This is the file containing cells to track */
-      if (cellfile != NULL)	/*If there actually *is* a file read it */
-	{
-	  while (fscanf (cellfile, "%d", &cell) == 1)	/*If the line contains only one integer number read it in, otherwise quit reading */
-	    {
-	      Log
-		("open_diagfile: Cell diagnostics - we have a cell - %i, ncstat=%i, NCSTAT=%i\n",
-		 cell, ncstat, NCSTAT);
-	      if (-1 < cell && cell < geo.nplasma && ncstat < NCSTAT)	/*if the cells are real */
-		{
-		  Log
-		    ("open_diagfile: Cell numbers have been accepted as real.\n");
-		  ncell_stats[ncstat] = cell;
-		  ncstat = ncstat + 1;
-		}
-	      else
-		{
-		  Error
-		    ("open_diagfile: %i is an unacceptable cell number for photon tracking\n",
-		     cell);
-		}
-	    }
-	  fclose (cellfile);
-	  pstatptr = fopen ("cell_phot_stats.dat", "w");
-	}
-      else
-	{
-	  Log
-	    ("open_diagfile: We have no file of cells to track, so we wont be doing any cell tracking\n");
-	}
-      pstatinit = 1;		/* We have initialised this routine */
+      while (fscanf (cellfile, "%d", &cell) == 1)       /*If the line contains only one integer number read it in, otherwise quit reading */
+      {
+        Log ("open_diagfile: Cell diagnostics - we have a cell - %i, ncstat=%i, NCSTAT=%i\n", cell, ncstat, NCSTAT);
+        if (-1 < cell && cell < geo.nplasma && ncstat < NCSTAT) /*if the cells are real */
+        {
+          Log ("open_diagfile: Cell numbers have been accepted as real.\n");
+          ncell_stats[ncstat] = cell;
+          ncstat = ncstat + 1;
+        }
+        else
+        {
+          Error ("open_diagfile: %i is an unacceptable cell number for photon tracking\n", cell);
+        }
+      }
+      fclose (cellfile);
+      pstatptr = fopen ("cell_phot_stats.dat", "w");
     }
+    else
+    {
+      Log ("open_diagfile: We have no file of cells to track, so we wont be doing any cell tracking\n");
+    }
+    pstatinit = 1;              /* We have initialised this routine */
+  }
 
   return (0);
 }
@@ -272,19 +284,19 @@ init_extra_diagnostics ()
 
 
 /**********************************************************/
-/** @name      save_photon_stats
+/**
  * @brief      prints photon statistics to a file
  *
  * @param [in] WindPtr  one   WindPtr for the cell
  * @param [in] PhotPtr  p   Photon pointer (for one photon)
  * @param [in] double  ds   ds travelled
- * @param [in] double  w_ave   The avereage weight of the pohton as it travelled
+ * @param [in] double  w_ave   The average weight of the photon as it travelled
  * @return     Always returns 0
  *
  * @details
  * The routine checks whether this is one of a number of cells in which one
  * wishes to record the photons statitics and if so writes out information
- * about the phtoon to a file.
+ * about the photon to a file.
  *
  * ### Notes ###
  * Called from radiation
@@ -304,31 +316,31 @@ save_photon_stats (one, p, ds, w_ave)
    */
 
   for (i = 0; i < ncstat; i++)
+  {
+    /* check if the cell is in the specified list - ncell_stats is global variable */
+    if (one->nplasma == ncell_stats[i])
     {
-      /* check if the cell is in the specified list - ncell_stats is global variable */
-      if (one->nplasma == ncell_stats[i])
-	{
-	  fprintf (pstatptr,
-		   "PHOTON_DETAILS cycle %3d n_photon %d freq %8.3e  w %8.3e ave_w %8.3e ds %8.3e nscat %d plasma cell %3d wind cell %3d\n",
-		   geo.wcycle, p->np, p->freq, p->w, w_ave, ds, p->nscat,
-		   one->nplasma, one->nwind);
-	}
+      fprintf (pstatptr,
+               "PHOTON_DETAILS cycle %3d n_photon %d freq %8.3e  w %8.3e ave_w %8.3e ds %8.3e nscat %d plasma cell %3d wind cell %3d\n",
+               geo.wcycle, p->np, p->freq, p->w, w_ave, ds, p->nscat, one->nplasma, one->nwind);
     }
+  }
   return (0);
 }
 
 
 
 /**********************************************************/
-/** @name      save_extract_photons
- * @brief      saves informations about phtoons in
- *     a particulare wavelength gange
+/**
+ * @brief      saves informations about photons in
+ *     a particulare wavelength range
  *
  * @param [in] int  n   The number of the spectrum
  * @param [in] PhotPtr  p   The photon before being doppler shifted
  * @param [in] PhotPtr  pp   The phtoon after being doppler shiftd
  * @param [in] double *  v   The velocity vector at the possibon of p/pp
  * @return     Always returns 0
+phase(0=inferior_conjunction)                   0.5
  *
  * @details
  * This diagnostic routine was proably written to address a concern
@@ -347,10 +359,9 @@ save_extract_photons (n, p, pp, v)
      double *v;
 {
   fprintf (epltptr,
-	   "EXTRACT %3d %10.3e %10.3e %10.3e %10.3e %10.3e %10.3e %6.3f %6.3f %6.3f %6.3f %6.3f %6.3f %7.2f %7.2f \n",
-	   n, p->x[0], p->x[1], p->x[2], v[0], v[1], v[2],
-	   p->lmn[0], p->lmn[1], p->lmn[2], pp->lmn[0], pp->lmn[1],
-	   pp->lmn[2], 2.997925e18 / p->freq, 2.997925e18 / pp->freq);
+           "EXTRACT %3d %10.3e %10.3e %10.3e %10.3e %10.3e %10.3e %6.3f %6.3f %6.3f %6.3f %6.3f %6.3f %7.2f %7.2f \n",
+           n, p->x[0], p->x[1], p->x[2], v[0], v[1], v[2],
+           p->lmn[0], p->lmn[1], p->lmn[2], pp->lmn[0], pp->lmn[1], pp->lmn[2], 2.997925e18 / p->freq, 2.997925e18 / pp->freq);
 
   return (0);
 }
@@ -359,7 +370,7 @@ int save_photon_number = 0;
 
 
 /**********************************************************/
-/** @name      save_photons
+/**
  * @brief      save_photon
  *
  * @param [in] PhotPtr  p   Photon pointer
@@ -383,20 +394,18 @@ save_photons (p, comment)
      char comment[];
 {
   save_photon_number += 1;
-  if (save_photon_number > 100000)
-    return (0);
 
   fprintf (epltptr,
-	   "PHOTON %3d %10.3e %10.3e %10.3e %10.3e %10.3e %10.3e %3d %3d %s \n",
-	   p->np, p->x[0], p->x[1], p->x[2], p->lmn[0], p->lmn[1],
-	   p->lmn[2], p->grid, p->istat, comment);
+           "PHOTON %3d %3d %10.4e %10.3e %10.3e %10.3e %10.3e %10.3e %10.3e %3d %3d %3d %3d %s \n",
+           geo.wcycle, p->np, p->freq, p->x[0], p->x[1], p->x[2], p->lmn[0], p->lmn[1],
+           p->lmn[2], p->grid, p->istat, p->origin, p->nres, comment);
 
   return (0);
 }
 
 
 /**********************************************************/
-/** @name      track_scatters
+/**
  * @brief
  *
  * @param [in] PhotPtr  p   Photon pointer
@@ -420,8 +429,7 @@ track_scatters (p, nplasma, comment)
 {
 
   fprintf (epltptr, "Scattter %i %.2e %.2e %.2e  %i %e %e %i %s\n", p->np,
-	   p->x[0], p->x[1], p->x[2], p->grid, p->freq, p->w, nplasma,
-	   comment);
+           p->x[0], p->x[1], p->x[2], p->grid, p->freq, p->w, nplasma, comment);
 
   return (0);
 }

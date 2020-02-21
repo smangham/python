@@ -1,0 +1,11 @@
+name: Central_object.luminosity
+description: |
+  The luminosity of a non-blackbody AGN central source.
+  This is defined as the luminosity from 2-10keV.
+type: Double
+unit: ergs/s
+values: Greater than 0.
+parent:
+  System_type: [agn, bh]
+  Central_object.rad_type_to_make_wind: [brems, cloudy, model, power]
+file: setup_star_bh.c

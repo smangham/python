@@ -28,12 +28,9 @@ History:
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+
 #include "atomic.h"
 #include "python.h"
-
-
-
-
 
 
 /**************************************************************************
@@ -374,6 +371,69 @@ abs_summary (w, rootname, ochoice)
 
   if (ochoice)
   {
+    write_array (filename, ochoice);
+  }
+  return (0);
+
+}
+
+/**************************************************************************
+
+
+  Synopsis:  
+  A summary of shock heating
+
+  Description:  
+
+  Arguments:  
+
+  Returns:
+
+  Notes:
+
+  History:
+
+ ************************************************************************/
+
+int
+shock_heating_summary (w, rootname, ochoice)
+     WindPtr w;
+     char rootname[];
+     int ochoice;
+{
+  int n;
+  double tot;
+  double shock_heating ();
+  char filename[LINELENGTH];
+//OLD  double t_e;
+
+
+
+  tot = 0.0;
+  for (n = 0; n < NDIM2; n++)
+  {
+    aaa[n] = 0;
+    if (w[n].vol > 0.0)
+    {
+      tot += aaa[n] = shock_heating (&w[n]);
+    }
+  }
+
+  if (geo.nonthermal == 1)
+  {
+    display ("Shock heating");
+    Log ("The total shock heating is %8.2g\n", tot);
+  }
+  else
+  {
+    display ("This is only potential shock heating - it was switched off in the model");
+    Log ("The total shock heating is %8.2g\n", tot);
+  }
+
+  if (ochoice)
+  {
+    strcpy (filename, rootname);
+    strcat (filename, ".shock_heating");
     write_array (filename, ochoice);
   }
   return (0);
@@ -1345,7 +1405,7 @@ mo_summary (w, rootname, ochoice)
   /* Note that EOF actually causes an exit via rdpar */
   while (rdint ("|F_rad|=0;Frac_x=1,Frad_y=2,Frad_z=3,return=other", &ichoice) != EOF)
   {
-    if (ichoice < 0 || ichoice > 3)
+    if (ichoice < 0 || ichoice > 4)
       return (0);
 
     if (ichoice == 0)
@@ -1356,6 +1416,7 @@ mo_summary (w, rootname, ochoice)
       strcpy (name, "F_rad_y");
     else
       strcpy (name, "F_rad_z");
+
 
     for (n = 0; n < NDIM2; n++)
     {
@@ -1368,21 +1429,42 @@ mo_summary (w, rootname, ochoice)
             sqrt (xplasma->dmo_dt[0] * xplasma->dmo_dt[0] +
                   xplasma->dmo_dt[1] * xplasma->dmo_dt[1] + xplasma->dmo_dt[2] * xplasma->dmo_dt[2]);
         else if (ichoice == 1)
-          x = xplasma->dmo_dt[0];
+          x = xplasma->rad_force_es[0];
         else if (ichoice == 2)
-          x = xplasma->dmo_dt[1];
+          x = xplasma->rad_force_es[1];
         else
-          x = xplasma->dmo_dt[2];
+          x = xplasma->rad_force_es[2];
       }
       aaa[n] = x;
     }
     display (name);
 
-    if (ochoice && ichoice == 0)
+    if (ochoice)
     {
-      strcpy (filename, rootname);
-      strcat (filename, ".f_rad");
-      write_array (filename, ochoice);
+      if (ichoice == 0)
+      {
+        strcpy (filename, rootname);
+        strcat (filename, ".f_rad_mod");
+        write_array (filename, ochoice);
+      }
+      else if (ichoice == 1)
+      {
+        strcpy (filename, rootname);
+        strcat (filename, ".f_rad_x");
+        write_array (filename, ochoice);
+      }
+      else if (ichoice == 2)
+      {
+        strcpy (filename, rootname);
+        strcat (filename, ".f_rad_y");
+        write_array (filename, ochoice);
+      }
+      else
+      {
+        strcpy (filename, rootname);
+        strcat (filename, ".f_rad_z");
+        write_array (filename, ochoice);
+      }
     }
 
   }
@@ -1529,8 +1611,8 @@ a:printf ("There are %i wind elements in this model\n", NDIM2);
 
 
 
-  Log ("Recombination cooling   HII>HI %8.2e HeII>HeI %8.2e HeIII>HeII %8.2e Metals %8.2e\n", xplasma->cool_rr_ion[0], xplasma->cool_rr_ion[2],
-       xplasma->cool_rr_ion[3], xplasma->cool_rr_metals);
+  Log ("Recombination cooling   HII>HI %8.2e HeII>HeI %8.2e HeIII>HeII %8.2e Metals %8.2e\n", xplasma->cool_rr_ion[0],
+       xplasma->cool_rr_ion[2], xplasma->cool_rr_ion[3], xplasma->cool_rr_metals);
   Log ("Photoionization heating HI>HII %8.2e HeI>HeII %8.2e HeII>HeIII %8.2e Metals %8.2e\n", xplasma->heat_ion[0], xplasma->heat_ion[2],
        xplasma->heat_ion[3], xplasma->heat_z);
 
@@ -1607,6 +1689,13 @@ a:printf ("There are %i wind elements in this model\n", NDIM2);
          xplasma->fmin_mod[nn], geo.xfreq[nn], xplasma->fmax_mod[nn], geo.xfreq[nn + 1], xplasma->spec_mod_type[nn], xplasma->pl_log_w[nn],
          xplasma->pl_alpha[nn], xplasma->exp_w[nn], xplasma->exp_temp[nn]);
   }
+
+  Log ("Flux:\n");
+  Log ("F_vis_w = %9.2e  F_vis_phi = %9.2e  F_vis_z = %9.2e \n", xplasma->F_vis[0], xplasma->F_vis[1], xplasma->F_vis[2]);
+  Log ("F_UV_w  = %9.2e  F_UV_phi  = %9.2e  F_UV_z  = %9.2e \n", xplasma->F_UV[0], xplasma->F_UV[1], xplasma->F_UV[2]);
+  Log ("F_Xray_w= %9.2e  F_Xray_phi= %9.2e  F_Xray_z= %9.2e \n", xplasma->F_Xray[0], xplasma->F_Xray[1], xplasma->F_Xray[2]);
+
+
 
 
   goto a;
@@ -1920,7 +2009,7 @@ dvds_summary (w, rootname, ochoice)
 }
 
 /* A summary of inner shell ionization */
-
+/* NSH - this code removed May 18 
 int
 inner_shell_summary (w, rootname, ochoice)
      WindPtr w;
@@ -1951,7 +2040,7 @@ inner_shell_summary (w, rootname, ochoice)
   return (0);
 
 }
-
+*/
 
 /* A summary of the Ionization parameter - might not always be present */
 
@@ -1965,24 +2054,25 @@ IP_summary (w, rootname, ochoice)
   char filename[LINELENGTH];
   int nplasma;
 
-  for (n = 0; n < NDIM2; n++)
-  {
-    aaa[n] = 0;
-    if (w[n].vol > 0.0)
-    {
-      nplasma = w[n].nplasma;
-      aaa[n] = ((plasmamain[nplasma].ferland_ip));
-    }
-  }
-  display ("Ionization parameter (Ferland)");
+//OLD Ferland IP has been deleted 180516
+//OLD  for (n = 0; n < NDIM2; n++)
+//OLD  {
+//OLD    aaa[n] = 0;
+//OLD    if (w[n].vol > 0.0)
+//OLD    {
+//OLD      nplasma = w[n].nplasma;
+//OLD      aaa[n] = ((plasmamain[nplasma].ferland_ip));
+//OLD    }
+//OLD  }
+//OLD  display ("Ionization parameter (Ferland)");
 
-  if (ochoice)
-  {
-    strcpy (filename, rootname);
-    strcat (filename, ".f_IP");
-    write_array (filename, ochoice);
-
-  }
+//OLD  if (ochoice)
+//OLD  {
+//OLD    strcpy (filename, rootname);
+//OLD    strcat (filename, ".f_IP");
+//OLD    write_array (filename, ochoice);
+//OLD
+//OLD  }
 
   for (n = 0; n < NDIM2; n++)
   {
@@ -2345,7 +2435,7 @@ J_summary (w, rootname, ochoice)
       }
     }
 
-    printf ("Line wavelength is %.2f\n", (C / line_ptr->freq) / ANGSTROM);
+    printf ("Line wavelength is %.2f\n", (VLIGHT / line_ptr->freq) / ANGSTROM);
     printf ("Line freq is %8.4e\n", line_ptr->freq);
     printf ("njump %i llvl %i uplvl %i nres %i", njump, llvl, uplvl, config[llvl].bbu_jump[njump]);
     display ("J in cell");
@@ -3238,14 +3328,14 @@ complete_physical_summary (w, rootname, ochoice)
   printf ("n\tnplasma\tinwind\ti\tj\tx\tz\tv\tvx\tvy\tvz\tdvds_ave\tvol\t \
 rho\tne\tte\ttr\tnphot\tw\tave_freq\tIP\tconv\tconv_tr\tconv_te\tconv_hc\t \
 cool_tot\tlum_tot\tlum_rr\tcool_rr\tlum_ff\tlum_lines\tcool_adiabatic\tcool_comp\tcool_dr\tcool_DI \
-heat_tot\theat_photo\theat_auger\theat_lines\theat_ff\theat_comp\theat_ind_comp\t \
+heat_tot\theat_photo\theat_auger\theat_lines\theat_ff\theat_comp\theat_ind_comp\theat_shock\t \
 ionH1\tionH2\tionHe1\tionHe2\tionHe3\tionC3\tionC4\tionC5\tionN5\tionO6\tionSi4\n");
 
   if (ochoice)
     fprintf (fptr, "n\tnplasma\tinwind\ti\tj\tx\tz\tr\ttheta\tv\tvx\tvy\tvz\tdvds_ave\tvol\t \
 rho\tne\tte\ttr\tnphot\tw\tave_freq\tIP\tXi\tconv\tconv_tr\tconv_te\tconv_hc\t \
 cool_tot\tlum_tot\tlum_rr\tcool_rr\tlum_ff\tlum_lines\tcool_adiabatic\tcool_comp\tcool_dr\tcool_DI \t\
-heat_tot\theat_photo\theat_auger\theat_lines\theat_ff\theat_comp\theat_ind_comp\t \
+heat_tot\theat_photo\theat_auger\theat_lines\theat_ff\theat_comp\theat_ind_comp\theat_shock\t \
 ionH1\tionH2\tionHe1\tionHe2\tionHe3\tionC3\tionC4\tionC5\tionN5\tionO6\tionSi4\n");
 
 
@@ -3297,17 +3387,7 @@ ionH1\tionH2\tionHe1\tionHe2\tionHe3\tionC3\tionC4\tionC5\tionN5\tionO6\tionSi4\
             %8.4e %8.4e %8.4e %i %8.4e %8.4e %8.4e %8.4e %i %8.4e %8.4e %8.4e %8.4e \
             %8.4e %8.4e %8.4e %8.4e %8.4e %8.4e %8.4e %8.4e %8.4e %8.4e %8.4e\
             %8.4e %8.4e %8.4e %8.4e %8.4e %8.4e \
-            %8.4e %8.4e %8.4e %8.4e %8.4e %8.4e %8.4e %8.4e %8.4e %8.4e\n", n, np, w[n].inwind, ii, jj, w[n].x[0], w[n].x[2], w[n].rcen, 
-	  w[n].thetacen / RADIAN, vtot, w[n].v[0], w[n].v[1], w[n].v[2], w[n].dvds_ave, w[n].vol, plasmamain[np].rho, plasmamain[np].ne, 
-	  plasmamain[np].t_e, plasmamain[np].t_r, plasmamain[np].ntot, plasmamain[np].w, plasmamain[np].ave_freq, plasmamain[np].ip, plasmamain[np].xi, 
-	  plasmamain[np].converge_whole, plasmamain[np].converge_t_r, plasmamain[np].converge_t_e, plasmamain[np].converge_hc, 
-	  plasmamain[np].cool_tot_ioniz+ plasmamain[np].cool_comp_ioniz + plasmamain[np].cool_adiabatic_ioniz + plasmamain[np].cool_dr_ioniz, 
-	  plasmamain[np].lum_tot_ioniz, plasmamain[np].lum_rr_ioniz,plasmamain[np].cool_rr_ioniz, plasmamain[np].lum_ff_ioniz, plasmamain[np].lum_lines_ioniz, 
-	  plasmamain[np].cool_adiabatic_ioniz, plasmamain[np].cool_comp_ioniz, plasmamain[np].cool_dr_ioniz, plasmamain[np].cool_di_ioniz, 
-	  plasmamain[np].heat_tot, plasmamain[np].heat_photo,
-	  plasmamain[np].heat_auger, plasmamain[np].heat_lines, plasmamain[np].heat_ff, plasmamain[np].heat_comp, plasmamain[np].heat_ind_comp,
-	  h1den, h2den, he1den, 
-	  he2den, he3den, c3den, c4den, c5den, n5den, o6den, si4den);
+            %8.4e %8.4e %8.4e %8.4e %8.4e %8.4e %8.4e %8.4e %8.4e %8.4e %8.4e\n", n, np, w[n].inwind, ii, jj, w[n].x[0], w[n].x[2], w[n].rcen, w[n].thetacen / RADIAN, vtot, w[n].v[0], w[n].v[1], w[n].v[2], w[n].dvds_ave, w[n].vol, plasmamain[np].rho, plasmamain[np].ne, plasmamain[np].t_e, plasmamain[np].t_r, plasmamain[np].ntot, plasmamain[np].w, plasmamain[np].ave_freq, plasmamain[np].ip, plasmamain[np].xi, plasmamain[np].converge_whole, plasmamain[np].converge_t_r, plasmamain[np].converge_t_e, plasmamain[np].converge_hc, plasmamain[np].cool_tot_ioniz + plasmamain[np].cool_comp_ioniz + plasmamain[np].cool_adiabatic_ioniz + plasmamain[np].cool_dr_ioniz, plasmamain[np].lum_tot_ioniz, plasmamain[np].lum_rr_ioniz, plasmamain[np].cool_rr_ioniz, plasmamain[np].lum_ff_ioniz, plasmamain[np].lum_lines_ioniz, plasmamain[np].cool_adiabatic_ioniz, plasmamain[np].cool_comp_ioniz, plasmamain[np].cool_dr_ioniz, plasmamain[np].cool_di_ioniz, plasmamain[np].heat_tot, plasmamain[np].heat_photo, plasmamain[np].heat_auger, plasmamain[np].heat_lines, plasmamain[np].heat_ff, plasmamain[np].heat_comp, plasmamain[np].heat_ind_comp, plasmamain[np].heat_shock, h1den, h2den, he1den, he2den, he3den, c3den, c4den, c5den, n5den, o6den, si4den);
     }
     else
     {
@@ -3325,7 +3405,7 @@ ionH1\tionH2\tionHe1\tionHe2\tionHe3\tionC3\tionC4\tionC5\tionN5\tionO6\tionSi4\
         fprintf (fptr, "%i %i %i %i %i %8.4e %8.4e 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 \
             0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 \
             0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 \
-            0.0 0.0 0.0 0.0 0.0 0.0 0.0 \
+            0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 \
             0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0\n", n, np, w[n].inwind, ii, jj, w[n].x[0], w[n].x[2]);
     }
   }
@@ -3365,7 +3445,7 @@ complete_ion_summary (w, rootname, ochoice)
 {
   char cell[5];
   PlasmaPtr xplasma;
-  FILE *fptr, *fopen ();
+  FILE *fptr = NULL, *fopen ();
   char filename[LINELENGTH];
 
 
@@ -3419,6 +3499,9 @@ a:printf ("There are %i wind elements in this model\n", NDIM2);
 b:return (0);
 
 }
+
+
+
 
 
 /**************************************************************************
@@ -3616,13 +3699,13 @@ get_los_dvds (w, rootname, ochoice)
           r = sqrt (p.x[0] * p.x[0] + p.x[1] * p.x[1]);
           rzero = sv_find_wind_rzero (ndom, p.x);
           v1[0] = v1[2] = 0.0;
-          v1[1] = sqrt (G * geo.mstar * rzero) / r;
+          v1[1] = sqrt (GRAV * geo.mstar * rzero) / r;
 
 
           r = sqrt (ptest.x[0] * ptest.x[0] + ptest.x[1] * ptest.x[1]);
           rzero = sv_find_wind_rzero (ndom, ptest.x);
           v2[0] = v2[2] = 0.0;
-          v2[1] = sqrt (G * geo.mstar * rzero) / r;
+          v2[1] = sqrt (GRAV * geo.mstar * rzero) / r;
 
           if (p.x[1] != 0.0)
           {
@@ -3713,4 +3796,111 @@ grid_summary (WindPtr w, char rootname[], int ochoice)
 
   }
   return (0);
+}
+
+
+
+
+
+
+int
+flux_summary (w, rootname, ochoice)
+     WindPtr w;
+     char rootname[];
+     int ochoice;
+{
+  int n, np;
+  char filename[LINELENGTH];
+  int ii, jj;
+  FILE *fptr, *fopen ();
+  PlasmaPtr xplasma;
+  int ndom, m;
+
+
+  if (ochoice)
+  {
+    strcpy (filename, rootname);
+    strcat (filename, ".flux_summary");
+    fptr = fopen (filename, "w");
+  }
+  else
+    printf ("This mode is recommended purely for file output\n");
+
+
+  /* JM 1411 -- First we have to write out some headers so that 
+     astropy can read the output */
+
+
+
+
+  if (ochoice)
+  {
+    fprintf (fptr, "n\tnplasma\tinwind\ti\tj\tx\tz\tr\ttheta ");
+
+    for (m = 0; m < geo.nxfreq; m++)
+    {
+      fprintf (fptr, "\tF_w%i\tF_p%i\tF_z%i ", m, m, m);
+
+    }
+    fprintf (fptr, "\n");
+  }
+
+  Log ("py_wind_sub does not work yet\n");
+  ndom = 0;
+  for (n = 0; n < NDIM2; n++)
+  {
+    wind_n_to_ij (ndom, n, &ii, &jj);
+
+    if (w[n].vol > 0.0)
+    {
+      np = w[n].nplasma;
+      xplasma = &plasmamain[np];
+      if (ochoice)
+      {
+        fprintf (fptr, "%i %i %i %i %i %8.4e %8.4e %8.4e %8.4e ", n, np, w[n].inwind, ii, jj, w[n].x[0], w[n].x[2], w[n].rcen,
+                 w[n].thetacen / RADIAN);
+        fprintf (fptr, "%8.4e %8.4e %8.4e ", plasmamain[np].F_vis[0], plasmamain[np].F_vis[1], plasmamain[np].F_vis[2]);
+        fprintf (fptr, "%8.4e %8.4e %8.4e ", plasmamain[np].F_UV[0], plasmamain[np].F_UV[1], plasmamain[np].F_UV[2]);
+        fprintf (fptr, "%8.4e %8.4e %8.4e ", plasmamain[np].F_Xray[0], plasmamain[np].F_Xray[1], plasmamain[np].F_Xray[2]);
+
+
+        fprintf (fptr, "\n");
+      }
+
+    }
+    else
+    {
+      /* if we aren't inwind then print out a load of zeroes */
+
+      /* printf("%i %i %i %i %i %8.4e %8.4e 0.0 0.0 0.0 0.0 0.0 0.0 0.0 \
+         0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 \
+         0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 \
+         0.0 0.0 0.0 0.0 0.0 0.0 \
+         0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0\n",
+         n, np, w[n].inwind, ii, jj, w[n].x[0], w[n].x[2]);
+       */
+
+      if (ochoice)
+      {
+        fprintf (fptr, "%i %i %i %i %i %8.4e %8.4e 0.0 0.0 ", n, np, -2, ii, jj, w[n].x[0], w[n].x[2]);
+        for (m = 0; m < geo.nxfreq; m++)
+        {
+          fprintf (fptr, "0.0 0.0 0.0 ");
+
+        }
+        fprintf (fptr, "\n");
+      }
+    }
+  }
+
+
+  if (ochoice)
+  {
+    fclose (fptr);
+    printf ("\nSaved flux details\n");
+  }
+
+  return (0);
+
+
 }

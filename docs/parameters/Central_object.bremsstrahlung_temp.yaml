@@ -1,0 +1,10 @@
+name: Central_object.bremsstrahlung_temp
+description: |
+  The temperature T in bremstrahlung SED of the form
+  $L_\nu=\nu^{\alpha}e^{-h\nu/kT}$
+type: Double
+unit: K
+values: Greater than 0
+parent:
+  Central_object.rad_type_to_make_wind: [brems]
+file: setup_star_bh.c

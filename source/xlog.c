@@ -5,11 +5,11 @@
  * @date   January, 2018
  *
  * @brief  These are a series of routines designed to store comments and errors
- * in a diagnostic file or files.  The routines also provide a mechanism for tracking the numbers of erorrs
+ * in a diagnostic file or files.  The routines also provide a mechanism for tracking the numbers of errors
  * of each type
  *
  * Instead of using printf and fprintf statements throughout varius subroutines, the set of routines
- * here are intended to provide a standard interface to various diagnostic files, and to manage the inteaction of 
+ * here are intended to provide a standard interface to various diagnostic files, and to manage the interaction of 
  * logging with the various mpi threads that can exist when running Python in multiprocessor mode.  The routines
  * also contain a verbosity mechanism to allow one to control how much information is written to the screen, and a 
  * mechanism to keep track of the number of times a particular error message has been generated.  The overall goal 
@@ -36,8 +36,8 @@
  *  One can control how much information is printed to the screen and how many times a specific error message is logged 
  *  to a file with several routines
  *  - Log_set_verbosity(vlevel)			Set the verbosity of the what is printed to the screen and the log file
- * 	- Log_print_max(print_max)			Set the number of times a single error will be 
- * 	    output to the scren and the log file
+ *  - Log_print_max(print_max)			Set the number of times a single error will be 
+ * 	    output to the screen and the log file
  *
  *  In most cases, it is sufficient to log to the screen only from thread 0.  there are a few times, one might want to 
  *  send a message to the screen from any thread. For this purpose there is a specific command:
@@ -46,8 +46,8 @@
  *
  *  There are several specific commands that have been included for debugging problems:
  *  - Log_flush()					simply flushes the logfile to disk (before the program crashes).
- *	- Debug( char *format, ...) 			Log an statement to the screen and to a file.  This is essentially a 
- *								intended to replace a printf statement in situations where
+ *  - Debug( char *format, ...) 			Log an statement to the screen and to a file.  This is essentially a 
+ *						        intended to replace a printf statement in situations where
  *							one is debugging code.  The use of Debug instead of log
  *							means that a future developer should be free to remove the
  *							Debug statement from the code.  Because the command prepends the word Debug to 
@@ -75,11 +75,17 @@
  *	
  *
  ***********************************************************/
+
+#ifdef MPI_ON
+#include <mpi.h>
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
 #include <math.h>
+
 #include "log.h"
 
 #define LINELENGTH 256
@@ -87,15 +93,16 @@
 
 /* definitions of what is logged at what verboisty level */
 
-#define SHOW_PARALLEL		1
-#define SHOW_LOG  		2
-#define SHOW_ERROR		2
-#define SHOW_DEBUG	  	4
+#define SHOW_PARALLEL		  1
+#define SHOW_LOG  		    2
+#define SHOW_ERROR		    2
+#define SHOW_DEBUG	  	  4
 #define SHOW_LOG_SILENT  	5
 #define SHOW_ERROR_SILENT	5
 
 
 int my_rank = 0;                // rank of mpi process, set to zero
+int n_mpi_procs = 0;            // the number of mpi processes
 
 int log_print_max = 100;        // Maximum number of times a single error will be reported.  
                                 // Note that it will still be counted.
@@ -117,7 +124,6 @@ int init_log = 0;
 int log_verbosity = 5;          // A parameter which can be used to suppress what would normally be logged or printed
 
 
-
 /**********************************************************/
 /** 
  * @brief      Open a log file 
@@ -134,12 +140,10 @@ int
 Log_init (filename)
      char *filename;
 {
-  FILE *fopen ();
-
   if ((diagptr = fopen (filename, "w")) == NULL)
   {
     printf ("Yikes: could not even open log file %s\n", filename);
-    exit (0);
+    Exit (0);
   }
   init_log = 1;
 
@@ -149,7 +153,7 @@ Log_init (filename)
   if (errorlog == NULL)
   {
     printf ("There is a problem in allocating memory for the errorlog structure\n");
-    exit (0);
+    Exit (0);
   }
 
   return (0);
@@ -179,12 +183,10 @@ int
 Log_append (filename)
      char *filename;
 {
-  FILE *fopen ();
-
   if ((diagptr = fopen (filename, "a")) == NULL)
   {
     printf ("Yikes: could not even open log file %s\n", filename);
-    exit (0);
+    Exit (0);
   }
   init_log = 1;
 
@@ -194,7 +196,7 @@ Log_append (filename)
   if (errorlog == NULL)
   {
     printf ("There is a problem in allocating memory for the errorlog structure\n");
-    exit (0);
+    Exit (0);
   }
 
   return (0);
@@ -588,7 +590,7 @@ error_count (char *format)
     {
       printf ("Exceeded number of different errors that can be stored\n");
       error_summary ("Quitting because there are too many differnt types of errors\n");
-      exit (0);
+      Exit (0);
     }
   }
   else
@@ -599,7 +601,7 @@ error_count (char *format)
     if (n == max_errors)
     {
       error_summary ("Something is drastically wrong for any error to occur so much!\n");
-      exit (0);
+      Exit (0);
     }
   }
   return (n + 1);
@@ -610,7 +612,7 @@ error_count (char *format)
 
 /**********************************************************/
 /** 
- * @brief      Summparise the errors that have occurred 
+ * @brief      Summarize the errors that have occurred 
  *
  * @param [in] char *  message   A message that can accompany the error summary
  * @return     Always returns 0
@@ -638,11 +640,43 @@ error_summary (message)
     Log ("%9d -- %s", errorlog[n].n, errorlog[n].description);
   }
 
+  Log_flush ();
   return (0);
 }
 
 
-/*NSH 121107 added a routine to flush the diagfile*/
+
+
+/**********************************************************/
+/**
+ * @brief      Summarize the errors that have occurred for an mpi process
+ *
+ * @param [in] char *  message   A message that can accompany the error summary
+ * @return    void
+ *
+ *
+ * ###Notes###
+ *
+ *
+ **********************************************************/
+
+int
+error_summary_parallel (char *msg)
+{
+  int i;
+
+  Log_parallel ("\nError summary for thread %i: %s\n", my_rank, msg);
+  Log_parallel ("Recurrences --  Description\n");
+
+  for (i = 0; i < nerrors; i++)
+    Log_parallel ("%9d -- %s", errorlog[i].n, errorlog[i].description);
+
+  Log_flush ();
+
+  return 0;
+}
+
+
 
 
 /**********************************************************/
@@ -697,6 +731,7 @@ Log_set_mpi_rank (rank, n_mpi)
      int rank, n_mpi;
 {
   my_rank = rank;
+  n_mpi_procs = n_mpi;
   rdpar_set_mpi_rank (rank);    //this just communicates the rank to rdpar      
 
   return (0);
@@ -721,6 +756,8 @@ Log_set_mpi_rank (rank, n_mpi)
  *
  * ###Notes###
  *
+ * 26/11/18 EP: removed if statement so Log_parallel really does print a message
+ * to stdout for all MPI processes.
  *
  **********************************************************/
 
@@ -734,10 +771,9 @@ Log_parallel (char *format, ...)
     return (0);
 
   va_start (ap, format);
-  va_copy (ap2, ap);            
+  va_copy (ap2, ap);
 
-  if (my_rank == 0)
-    result = vprintf (format, ap);
+  result = vprintf (format, ap);
 
   fprintf (diagptr, "Para: ");
   result = vfprintf (diagptr, format, ap2);
@@ -782,12 +818,63 @@ Debug (char *format, ...)
     Log_init ("logfile");
 
   va_start (ap, format);
-  va_copy (ap2, ap);            
-  if (my_rank == 0)             
+  va_copy (ap2, ap);
+  if (my_rank == 0)
     vprintf ("Debug: ", ap);
   result = vprintf (format, ap);
   fprintf (diagptr, "Debug: ");
   result = vfprintf (diagptr, format, ap2);
   va_end (ap);
   return (result);
+}
+
+
+/**********************************************************/
+/**
+ *  @brief Wrapper function to exit MPI/Python.
+ *
+ *  @param[in] int error_code. An integer classifying the error. Note that this
+ *  number should be a non-zero integer.
+ *
+ *  @details
+ *  When MPI is in use, using the standard C library exit function can be somewhat
+ *  dangerous, as if a process exits with return code 0, MPI assumes that the
+ *  process has exited correctly and the program will continue. This results in
+ *  a deadlock and without any safety mechanism can result in an MPI run never
+ *  finishing. Hence, in multiprocessor mode, one should use use MPI_Abort
+ *  (which isn't a very graceful) to ensure that if a process does need to exit,
+ *  then all processes will exit with it.
+ *
+ *  Before exiting, an error summary is printed to screen and and log is flushed
+ *  to ensure everything is up to date to aid with error diagnosis.
+ *
+ *  ### Notes ###
+ *
+ **********************************************************/
+
+void
+Exit (int error_code)
+{
+  if (error_code == 0)
+  {
+    Log_parallel ("!!Exit: error codes should be non-zero!\n", my_rank);
+    error_code = EXIT_FAILURE;
+  }
+
+  Log_flush ();
+
+#ifdef MPI_ON
+  Log_parallel ("--------------------------------------------------------------------------\n"
+                "Aborting rank %04i: exiting all processes with error %i\n", my_rank, error_code);
+  error_summary_parallel ("summary prior to abort");
+
+  if (n_mpi_procs > 1)
+    MPI_Abort (MPI_COMM_WORLD, error_code);
+  else
+    exit (error_code);
+#else
+  Log ("--------------------------------------------------------------------------\n" "Aborting: exiting with error %i\n", error_code);
+  error_summary ("summary prior to abort");
+  exit (error_code);
+#endif
 }

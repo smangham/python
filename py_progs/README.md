@@ -1,9 +1,10 @@
-This directory contains python scripts for use with the C code python...confusing, huh...
+Description
+###########
 
-Docs for the scripts are generated automatically using the script write_docs. It can be rerun by cding to py_progs then running
+This directory contains python scripts for use with the C code python.
+You will need to run `write_docs.py` from that directory to generate this documentation.
 
-./write_docs.py . html_docs py_progs
+The basic python modules required can be found in `requirements.txt`.
 
-This will create a master html file doc_py_progs.html which links to html in the dubdirect html_docs.
-
-
+Using `hydro_2_python` requires the `pyhdf` module, which itelf requires the `libhdf4-dev` package.
+This can be installed manually or via your package manager or from the site [here](https://support.hdfgroup.org/downloads/index.html).

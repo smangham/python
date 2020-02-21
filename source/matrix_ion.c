@@ -1,66 +1,63 @@
-/***********************************************************
-                                       West Lulworth
 
-  Synopsis:   
-
-int   matrix_ion_populations (xplasma,mode)
-  
-  Arguments:		
-     PlasmaPtr xplasma;		The cell in question -
-     int mode;			1 - use a power law and or exponential model for J
-     				2 - use a dilute BB model for J - t_r and w are those 
-				parameters in xplasma
-
-
-  Returns:
-	
-
- 	
-  Description:	
-
-	The general structure of matrix_ion_populations is as follows:
-	First we compute all of the rates that we have data for linking all ionization stages 
-	We make an initial guess at the electron density
-	We attempt to solve the ionization rates matrix, and produce a new guess at the electron density
-	We now calculate new rates, resolve and proceed until the electron density converges.
-
-
- 
-  Notes:
-
-  This routine is a first try at implementing a matrix solver for the ionization state in a cell. 
-	This was motivated by the desire to incorporate more ionization and recombination processes
-	into python. 
-
-	
-
-
-
-  History:
-	2014Aug NSH - coded
-	2014 Nov NSH - tidied up
-	2016 Sep NSH - gone over to a relative abundance scheme
-
-**************************************************************/
-
-
+/***********************************************************/
+/** @file  matrix_ion.c
+ * @author ksl
+ * @date   January, 2018
+ *
+ * @brief  Contains routines which compute the ionization state using a matrix inversion technique
+ *
+ ***********************************************************/
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
-#include "atomic.h"
-#define SAHA 4.82907e15
-#include "python.h"
-
-
+//gsl matrix solvers
 #include <gsl/gsl_block.h>
 #include <gsl/gsl_vector.h>
 #include <gsl/gsl_matrix.h>
-#include "my_linalg.h"
+#include <gsl/gsl_mode.h>
+#include <gsl/gsl_permutation.h>
+#include <gsl/gsl_blas.h>
+#include <gsl/gsl_linalg.h>
+
+#include <float.h>
+#include "atomic.h"
+#include "python.h"
 
 
-
+/**********************************************************/
+/**
+ * @brief      A matrix solver for the ionization state in a cell
+ *
+ * @param [in,out] PlasmaPtr  xplasma   The plasma cell we are working on
+ * @param [in] int  mode   What type of model to use for J_nu - 1=fitted model 2=blackbody
+ * @return     0 if successful
+ *
+ * The abundances contained in xplasma are updated witht he results of
+ * the calculation.
+ *
+ * @details
+ * modes:
+ *   1 - use a power law and or exponential model for J
+ *   2 - use a dilute BB model for J defined by t_r and w
+ * The general structure of matrix_ion_populations is as follows:
+ * First we compute all of the rates that we have data for linking all ionization stages
+ * We make an initial guess at the electron density
+ * We attempt to solve the ionization rates matrix, and produce a new guess at the electron density
+ * We then calculate new rates, re-solve and proceed until the electron density converges.
+ * We solve the matrix equation A x = b for the vector x, where A is a square rate matrix linking
+ * each state with each other state (often containing zeros if the ions arent linked) b is a vector
+ * containing the total density of each element arranged in a certain way (see later) and
+ * x is a vector containing the relative ion populations. We invert A to get x=bA^-1
+ *
+ * ### Notes ###
+ * Uses a relative abundance scheme, in order to reduce large number issues
+ *
+ * Various parameters for the calculation, and in particular the t_e are passed
+ * via the PlasmaPtr
+ *
+ **********************************************************/
 
 int
 matrix_ion_populations (xplasma, mode)
@@ -68,27 +65,28 @@ matrix_ion_populations (xplasma, mode)
      int mode;
 
 {
-  double elem_dens[NELEMENTS];  //The fdensity of each element - 200 should be enough!
+  double elem_dens[NELEMENTS];  //The density of each element
   int nn, mm, nrows;
-  double rate_matrix[nions][nions];
-  double newden[NIONS];
+  double rate_matrix[nions][nions];     //The rate matrix that we are going to try and sol ve
+  double newden[NIONS];         //A temporary array to hold our intermediate solutions
   double nh, t_e;
-  double xne, xxne, xxxne;
-  double b_temp[nions];
-  double *b_data, *a_data;
-  double *populations;
-  int ierr, niterate;
+  double xne, xxne, xxxne;      //Various stores for intermediate guesses at electron density
+  double b_temp[nions];         //The b matrix
+  double *b_data, *a_data;      //These arrays are allocated later and sent to the matrix solver
+  double *populations;          //This array is allocated later and is retrieved from the matrix solver
+  int ierr, niterate;           //counters for errors and the number of iterations we have tried to get a converged electron density
   double xnew;
   int xion[nions];              // This array keeps track of what ion is in each line
   int xelem[nions];             // This array keeps track of the element for each ion
-  double pi_rates[nions];
-  double rr_rates[nions];
+  double pi_rates[nions];       //photoionization rate coefficients
+  double rr_rates[nions];       //radiative recombination rate coefficients
   double inner_rates[n_inner_tot];      //This array contains the rates for each of the inner shells. Where they go to requires the electron yield array
 
   /* Copy some quantities from the cell into local variables */
 
   nh = xplasma->rho * rho2nh;   // The number density of hydrogen ions - computed from density
-  t_e = xplasma->t_e;           // The electron temperature in the cell - used for collisional processes 
+  t_e = xplasma->t_e;           // The electron temperature in the cell - used for collisional processes
+
 
   /* We now calculate the total abundances for each element to allow us to use fractional abundances */
 
@@ -98,37 +96,36 @@ matrix_ion_populations (xplasma, mode)
     elem_dens[mm] = 0.0;
   }
 
-  /* Now we poulate the elemental abundace array */
+  /* Now we populate the elemental abundance array */
   for (mm = 0; mm < nions; mm++)
   {
     elem_dens[ion[mm].z] = elem_dens[ion[mm].z] + xplasma->density[mm];
   }
 
-  /* Dielectronic recombination and direct ionization coefficients depend only on electron temperature, calculate them now -
-     they will not change */
-  
+  /* Dielectronic recombination, collisional ionization coefficients and three body recombination
+     rate coefficients depend only on electron temperature, calculate them now - they will not change
+     they are all stored in global arrays */
+
   compute_dr_coeffs (t_e);
   compute_di_coeffs (t_e);
-
-  /* JM 1508 -- also compute direct recombination coefficients */
   compute_qrecomb_coeffs (t_e);
 
 
   /* In the following loop, over all ions in the simulation, we compute the radiative recombination rates, and photionization
      rates OUT OF each ionization stage. The PI rates are calculated either using the modelled mean intensity in a cell, or
      using the dilute blackbody approximation, depending on which mode we are in. At the same time, we copy the ion densities
-     from the plasma strcuture into a local array. We will only overwrite the numbders in the structure if we believe the
+     from the plasma structure into a local array. We will only overwrite the numbers in the structure if we believe the
      results are an improvement on what is there. */
 
   for (mm = 0; mm < nions; mm++)
   {
-    newden[mm] = xplasma->density[mm] / elem_dens[ion[mm].z];   // newden is our local density array - now it is fractional
+    newden[mm] = xplasma->density[mm] / elem_dens[ion[mm].z];   // newden is our local fractional density array
     xion[mm] = mm;              // xion is an array we use to track which ion is in which row of the matrix
-    if (ion[mm].istate != 1)    // We can recombine since we are not in the first ionization stage
+    if (mm != ele[ion[mm].nelem].firstion)      // We can recombine since we are not in the first ionization stage
     {
-      rr_rates[mm] = total_rrate (mm, xplasma->t_e);    // radiative recombination rates
+      rr_rates[mm] = total_rrate (mm, xplasma->t_e);    // radiative recombination rates          
     }
-    if (ion[mm].istate != ion[mm].z + 1)        // we can photoionize, since we are not in the z+1th ionization state (bare)
+    if (ion[mm].istate != ele[ion[mm].nelem].istate_max)        // we can photoionize, since we are not in the highest ionization state
     {
       if (mode == NEBULARMODE_MATRIX_BB)
       {
@@ -140,9 +137,8 @@ matrix_ion_populations (xplasma, mode)
       }
       else
       {
-        // If reached this point the program does not understand what type of spectral model to apply 
         Error ("matrix_ion_populations: Unknown mode %d\n", mode);
-        exit (0);
+        Exit (0);
       }
     }
 
@@ -150,7 +146,7 @@ matrix_ion_populations (xplasma, mode)
     {
       if (ion[mm].z == ele[nn].z)
       {
-        xelem[mm] = nn;         /* xelem logs which element each ow in the arrays refers to. This is important because we need
+        xelem[mm] = nn;         /* xelem logs which element each row in the arrays refers to. This is important because we need
                                    to know what the total density will be for a group of rows all representing the same
                                    element. */
       }
@@ -159,7 +155,7 @@ matrix_ion_populations (xplasma, mode)
 
 
   /* The next loop generates the inner shell ionization rates, if they are present in the atomic data and
-     we wish to compute auger ionizaion rates. This only computes the rates out of each ion, we also need to 
+     we wish to compute auger ionizaion rates. This only computes the rates out of each ion, we also need to
      consult the electron yield array if we are to compute the change in electron number */
 
   if (geo.auger_ionization == 1)
@@ -183,7 +179,7 @@ matrix_ion_populations (xplasma, mode)
 
   /* This next line sets the partition function for each ion. This has always been the place here python calculates the
      partition funcions and sets the level densities for each ion. It needs to be done, or other parts of the code which rely
-     on sensible level populations don't work properly. In the case of the dilute blackbody, the code works well, however we do 
+     on sensible level populations don't work properly. In the case of the dilute blackbody, the code works well, however we do
      not currently (v78) have a procedure to calucate the levels for a spectral model case. We therefore call partition
      functions with mode 4 - this is a special mode which forces the ions to be in the ground state. This is reasonable for a
      radiation dominated plasma, since any excitations into higher states will quickly be followed by radative de-excitation.
@@ -195,7 +191,7 @@ matrix_ion_populations (xplasma, mode)
   }
   else if (mode == NEBULARMODE_MATRIX_SPECTRALMODEL)
   {
-    partition_functions (xplasma, NEBULARMODE_LTE_GROUND);   // Set to ground state 
+    partition_functions (xplasma, NEBULARMODE_LTE_GROUND);      // Set to ground state
   }
 
   /* Next we need to obtain an initial guess for the electron density. In the past this has been done by calculating the
@@ -219,7 +215,7 @@ matrix_ion_populations (xplasma, mode)
   {
 
 
-    populate_ion_rate_matrix (xplasma, rate_matrix, pi_rates, inner_rates, rr_rates, b_temp, xne, xelem);
+    populate_ion_rate_matrix (rate_matrix, pi_rates, inner_rates, rr_rates, b_temp, xne);
 
 
     /* The array is now fully populated, and we can begin the process of solving it */
@@ -228,41 +224,38 @@ matrix_ion_populations (xplasma, mode)
                                    low rates) connecting them to other rows. This may improve stability but will need to be
                                    done carefully */
 
-    /* The solver routine was taken largely wholesale from the matom routine. I have left in most of the original comments, and 
+    /* The solver routine was taken largely wholesale from the matom routine. I have left in most of the original comments, and
        added a few of my own for clarification */
 
 
 
-                /********************************************************************************/
     /* The block that follows (down to next line of ***s) is to do the matrix inversion. It uses LU decomposition - the code
        for doing this is taken from the GSL manual with very few modifications. */
     /* here we solve the matrix equation M x = b, where x is our vector containing level populations as a fraction w.r.t the
        whole element */
-    /* JM 1411 -- the actual LU decomposition- the process of obtaining a solution - is done by the routine solve_matrix() */
+    /* The actual LU decomposition- the process of obtaining a solution - is done by the routine solve_matrix() */
 
-    /* Replaced inline array allocaation with calloc, which will work with older version of c compilers */
 
     /* This next line produces an array of the correct size to hold the rate matrix */
 
     a_data = (double *) calloc (sizeof (double), nrows * nrows);
-      /* We now copy our rate matrix into the prepared matrix */
-      for (mm = 0; mm < nrows; mm++)
-	{
-	  for (nn = 0; nn < nrows; nn++)
-	    {
-//						printf ("%30.25e ",rate_matrix[mm][nn]);
-	      a_data[mm * nrows + nn] = rate_matrix[mm][nn];
-	    }
-	}
+    /* We now copy our rate matrix into the prepared matrix */
+    for (mm = 0; mm < nrows; mm++)
+    {
+      for (nn = 0; nn < nrows; nn++)
+      {
+        a_data[mm * nrows + nn] = rate_matrix[mm][nn];
+      }
+    }
 
-    /* Replaced inline array allocaation with calloc, which will work with older version of c compilers calloc also sets the
+    /* Replaced inline array allocation with calloc, which will work with older version of c compilers calloc also sets the
        elements to zero, which is required */
 
-    b_data = (double *) calloc (sizeof (double), nrows);
-    populations = (double *) calloc (sizeof (double), nrows);
+    b_data = (double *) calloc (nrows, sizeof (double));
+    populations = (double *) calloc (nrows, sizeof (double));
 
-    /* This b_data column matrix is the total number density for each element, placed into the row which relates to the neutral 
-       ion. This matches the row in the rate matrix which is just 1 1 1 1 for all stages. NB, we could have chosen any line for 
+    /* This b_data column matrix is the total number density for each element, placed into the row which relates to the neutral
+       ion. This matches the row in the rate matrix which is just 1 1 1 1 for all stages. NB, we could have chosen any line for
        this. */
 
     for (nn = 0; nn < nrows; nn++)
@@ -278,18 +271,20 @@ matrix_ion_populations (xplasma, mode)
       Error ("matrix_ion_populations: some matrix rows failing relative error check\n");
     else if (ierr == 3)
       Error ("matrix_ion_populations: some matrix rows failing absolute error check\n");
-		else if (ierr == 4)
-			Error ("matrix_ion_populations: Unsolvable matrix! Determinant is zero. Defaulting to no change.\n");
+    else if (ierr == 4)
+      Error ("matrix_ion_populations: Unsolvable matrix! Determinant is zero. Defaulting to no change.\n");
+
+
 
     /* free memory */
     free (a_data);
     free (b_data);
 
-		if(ierr == 4)
-		{
-			free(populations);
-			return(-1);
-		}
+    if (ierr == 4)
+    {
+      free (populations);
+      return (-1);
+    }
 
     /* Calculate level populations for macro-atoms */
     if (geo.macro_ioniz_mode == 1)
@@ -313,14 +308,18 @@ matrix_ion_populations (xplasma, mode)
         newden[nn] = xplasma->density[nn] / elem_dens[ion[nn].z];
       }
 
-      for (mm = 0; mm < nrows; mm++)    // inner loop over the elements of the population array
+      /* if the ion is "simple" then find it's calculated ionization state in populations array */
+      else
       {
-        if (xion[mm] == nn)     // if this element contains the population of the ion is question
+
+        for (mm = 0; mm < nrows; mm++)  // inner loop over the elements of the population array
         {
-          newden[nn] = populations[mm]; // get the population
+          if (xion[mm] == nn)   // if this element contains the population of the ion is question
+          {
+            newden[nn] = populations[mm];       // get the population
+          }
         }
       }
-
 
       if (newden[nn] < DENSITY_MIN)     // this wil also capture the case where population doesnt have a value for this ion
         newden[nn] = DENSITY_MIN;
@@ -377,7 +376,7 @@ matrix_ion_populations (xplasma, mode)
   xplasma->ne = xnew;
   for (nn = 0; nn < nions; nn++)
   {
-    /* If statement added here to suppress interference with macro populations (SS Apr 04) */
+    /* If statement added here to suppress interference with macro populations */
     if (ion[nn].macro_info == 0 || geo.macro_ioniz_mode == 0 || geo.macro_simple == 1)
     {
       xplasma->density[nn] = newden[nn] * elem_dens[ion[nn].z]; //We return to absolute densities here
@@ -386,79 +385,60 @@ matrix_ion_populations (xplasma, mode)
       Error ("matrix_ion_populations: ion %i has population %8.4e in cell %i\n", nn, xplasma->density[nn], xplasma->nplasma);
   }
 
-  xplasma->ne= get_ne (xplasma->density);
+  xplasma->ne = get_ne (xplasma->density);
 
-  partition_functions (xplasma, NEBULARMODE_LTE_GROUND);     /* WARNING fudge XXX NSH 11/5/14 - this is as a test. We really need a better implementation
-                                           of partition functions and levels for a power law illuminating spectrum. We found that
-                                           if we didnt make this call, we would end up with undefined levels - which did really
-                                           crazy things */
+  /*We now need to populate level densities in order to later calculate line emission (for example).
+     We call partition functions to do this. At present, we do not have a method for accurately computing
+     level populations for modelled mean intensities. We get around this by setting all level populations
+     other than ground state to zero - this is a pretty good situation for very dilute radiation fields,
+     which is what we are normally looking at, however one should really do better in the long term.
+   */
+
+  partition_functions (xplasma, NEBULARMODE_LTE_GROUND);
 
 
   return (0);
 }
 
 
-/***********************************************************
-                                       West Lulworth
-
-  Synopsis:   
-    populate_ion_rate_matrix populates a rate_matrix of shape nions x nions
-    with the pi_rates and rr_rates supplied at the density xne in question.
-
-  
-  Arguments:	
-    xplasma 
-      PlasmaPtr to the plasma cell for physical properties
-
-    pi_rates
-      PI rates for each ion
-
-    rr_rates 
-      radiative recombination rates for each ion
-
-    b_temp
-      array which is mostly zeros, but first element is set to abundances
-      so the equation is soluble
-
-    xne 
-      our guess of ne, which has not been copied to xplasma yet
-
-    xelem
-      array which stores the element corresponding to each ion in the matrix
-
-  Returns:
-	
-
- 	
-  Description:
- 
-  Notes:
-    This routine includes the process of replacing the first row of the matrix with
-    1s in order to make the problem soluble. 
-
-  History:
-	2014Aug JM - moved code here from main routine
-
-**************************************************************/
+/**********************************************************/
+/**
+ * @brief      populates a rate_matrix
+ *
+ * @param [out] double  rate_matrix[nions][nions] - the rate matrix that will be filled by this array
+ * @param [in] double  pi_rates[nions] - vector of photionization rates
+ * @param [in] double  inner_rates[n_inner_tot] - vector of inner shell photoionization rates
+ * @param [in] double  rr_rates[nions] - vector of radiative recobination rates
+ * @param [out] double  b_temp[nions] - the vector of total elemental densities that we also fill here
+ * @param [in] double  xne - current electron density
+ * @return - zero if successful
+ *
+ * @details
+ * populate_ion_rate_matrix populates a rate_matrix of shape nions x nions
+ * with the pi_rates and rr_rates supplied at the density xne in question.
+ * It also populates the b matrix - that is the total elemental abundance -
+ * we use relative abundances so this is just a set of 1s and 0s.
+ *
+ * ### Notes ###
+ * This routine includes the process of replacing the first row of the matrix with
+ *     1s in order to make the problem soluble.
+ *
+ **********************************************************/
 
 int
-populate_ion_rate_matrix (xplasma, rate_matrix, pi_rates, inner_rates, rr_rates, b_temp, xne, xelem)
-     PlasmaPtr xplasma;
+populate_ion_rate_matrix (rate_matrix, pi_rates, inner_rates, rr_rates, b_temp, xne)
      double rate_matrix[nions][nions];
      double pi_rates[nions];
      double inner_rates[n_inner_tot];
      double rr_rates[nions];
      double xne;
      double b_temp[nions];
-     int xelem[nions];
 
 {
-  int nn, mm;
-  double nh;
+  int nn, mm, zcount;
   int n_elec, d_elec, ion_out;  //The number of electrons left in a current ion
 
 
-  nh = xplasma->rho * rho2nh;   // The number density of hydrogen ions - computed from density
 
   /* First we initialise the matrix */
   for (nn = 0; nn < nions; nn++)
@@ -479,7 +459,7 @@ populate_ion_rate_matrix (xplasma, rate_matrix, pi_rates, inner_rates, rr_rates,
 
   for (mm = 0; mm < nions; mm++)
   {
-    if (ion[mm].istate != ion[mm].z + 1)        // we have electrons
+    if (ion[mm].istate != ele[ion[mm].nelem].istate_max)        // we have electrons
     {
       rate_matrix[mm][mm] -= pi_rates[mm];
     }
@@ -493,7 +473,7 @@ populate_ion_rate_matrix (xplasma, rate_matrix, pi_rates, inner_rates, rr_rates,
     for (nn = 0; nn < nions; nn++)
     {
 
-      if (mm == nn + 1 && ion[nn].istate != ion[nn].z + 1 && ion[mm].z == ion[nn].z)
+      if (mm == nn + 1 && ion[nn].istate != ele[ion[nn].nelem].istate_max && ion[mm].z == ion[nn].z)
       {
         rate_matrix[mm][nn] += pi_rates[nn];
       }
@@ -504,7 +484,7 @@ populate_ion_rate_matrix (xplasma, rate_matrix, pi_rates, inner_rates, rr_rates,
 
   for (mm = 0; mm < nions; mm++)
   {
-    if (ion[mm].istate != ion[mm].z + 1 && ion[mm].dere_di_flag > 0)    // we have electrons and a DI rate
+    if (ion[mm].istate != ele[ion[mm].nelem].istate_max && ion[mm].dere_di_flag > 0)    // we have electrons and a DI rate
     {
       rate_matrix[mm][mm] -= (xne * di_coeffs[mm]);
     }
@@ -516,7 +496,7 @@ populate_ion_rate_matrix (xplasma, rate_matrix, pi_rates, inner_rates, rr_rates,
   {
     for (nn = 0; nn < nions; nn++)
     {
-      if (mm == nn + 1 && ion[nn].istate != ion[nn].z + 1 && ion[mm].z == ion[nn].z && ion[nn].dere_di_flag > 0)
+      if (mm == nn + 1 && ion[nn].istate != ele[ion[nn].nelem].istate_max && ion[mm].z == ion[nn].z && ion[nn].dere_di_flag > 0)
       {
         rate_matrix[mm][nn] += (xne * di_coeffs[nn]);
       }
@@ -528,7 +508,7 @@ populate_ion_rate_matrix (xplasma, rate_matrix, pi_rates, inner_rates, rr_rates,
 
   for (mm = 0; mm < nions; mm++)
   {
-    if (ion[mm].istate != 1)    // we have space for electrons
+    if (mm != ele[ion[mm].nelem].firstion)      // we have space for electrons
     {
       rate_matrix[mm][mm] -= xne * (rr_rates[mm] + xne * qrecomb_coeffs[mm]);
     }
@@ -541,7 +521,7 @@ populate_ion_rate_matrix (xplasma, rate_matrix, pi_rates, inner_rates, rr_rates,
   {
     for (nn = 0; nn < nions; nn++)
     {
-      if (mm == nn - 1 && ion[nn].istate != 1 && ion[mm].z == ion[nn].z)
+      if (mm == nn - 1 && nn != ele[ion[nn].nelem].firstion && ion[mm].z == ion[nn].z)
       {
         rate_matrix[mm][nn] += xne * (rr_rates[nn] + xne * qrecomb_coeffs[nn]);
       }
@@ -552,7 +532,7 @@ populate_ion_rate_matrix (xplasma, rate_matrix, pi_rates, inner_rates, rr_rates,
 
   for (mm = 0; mm < nions; mm++)
   {
-    if (ion[mm].istate != 1 && ion[mm].drflag > 0)      // we have space for electrons
+    if (mm != ele[ion[mm].nelem].firstion && ion[mm].drflag > 0)        // we have space for electrons
     {
       rate_matrix[mm][mm] -= (xne * dr_coeffs[mm]);
     }
@@ -567,7 +547,7 @@ populate_ion_rate_matrix (xplasma, rate_matrix, pi_rates, inner_rates, rr_rates,
   {
     for (nn = 0; nn < nions; nn++)
     {
-      if (mm == nn - 1 && ion[nn].istate != 1 && ion[mm].z == ion[nn].z && ion[mm].drflag > 0)
+      if (mm == nn - 1 && nn != ele[ion[nn].nelem].firstion && ion[mm].z == ion[nn].z && ion[mm].drflag > 0)
       {
         rate_matrix[mm][nn] += (xne * dr_coeffs[nn]);
       }
@@ -581,6 +561,7 @@ populate_ion_rate_matrix (xplasma, rate_matrix, pi_rates, inner_rates, rr_rates,
     if (inner_cross[mm].n_elec_yield != -1)     //we only want to treat ionization where we have info about the yield
     {
       ion_out = inner_cross[mm].nion;   //this is the ion which is being depopulated
+
       rate_matrix[ion_out][ion_out] -= inner_rates[mm]; //This is the depopulation
       n_elec = ion[ion_out].z - ion[ion_out].istate + 1;
       if (n_elec > 11)
@@ -596,6 +577,8 @@ populate_ion_rate_matrix (xplasma, rate_matrix, pi_rates, inner_rates, rr_rates,
 
 
 
+
+
   /* Now, we replace the first line for each element with 1's and 0's. This is done because we actually have more equations
      than unknowns. We replace the array elements relating to each ion stage in this element with a 1, and all the other array
      elements (which relate to other elements (in the chemicalsense) with zeros. This is equivalent to the equation
@@ -606,10 +589,10 @@ populate_ion_rate_matrix (xplasma, rate_matrix, pi_rates, inner_rates, rr_rates,
      densities which the solver computes are just the actual number densities for each ion. This does mean that different rows
      are orders of magnitude different, so one can imagine numerical issues. However each element is essentially solved for
      seperately.. Something to watch */
-
+  zcount = 0;
   for (nn = 0; nn < nions; nn++)
   {
-    if (ion[nn].istate == 1)
+    if (nn == ele[ion[nn].nelem].firstion)
     {
       b_temp[nn] = 1.0;         //In the relative abundance schene this equals one.
 
@@ -634,39 +617,28 @@ populate_ion_rate_matrix (xplasma, rate_matrix, pi_rates, inner_rates, rr_rates,
   return (0);
 }
 
-/***********************************************************
-                                       AMNH, New York
 
-  Synopsis: 
-    solve_matrix solves the matrix equation A x = b for the vector x.  
-     
-  Arguments:
-    a_data 
-    	1d array of length nrows * nrows, containing entries
-    	for matrix A	
-
-    b_data
-    	1d array of length nrows, containing entries
-    	for vector b
-
-    nrows
-        dimensions of matrices/vectors. Should be consistent
-        with arrays passed to routine.
-
-    populations	 
-    	1d array of length nrows, containing entries
-        for vector x - modified by this routine		
-
-  Returns:
- 	
-  Description:
- 
-  Notes:
-    
-  History:
-	2014Aug JM - moved code here from main routine
-
-**************************************************************/
+/**********************************************************/
+/**
+ * @brief      solves the matrix equation A x = b for the vector x.
+ *
+ * @param [in] double a_data - the square rate matric
+ * @param [in] double b_data - the vector of total elemental abundances
+ * @param [in] int  nrows - the number of rows (and columns) in the a matrix
+ * @param [out] double x   - the ionic abundances calculated here
+ * @param [in] int  nplasma - the index of the plasma cell we are working on - only used for reporting errors
+ * @return  int ierr - a number defining any error state
+ *
+ * @details
+ * Performs a matrix inversion to solve Ax=b for x. Most of the
+ * algorithms used for this are from the gsl library
+ *
+ * ### Notes ###
+ *
+ * nplasma is only used to indicate a cell number, if the 
+ * calculation fails.
+ *
+ **********************************************************/
 
 int
 solve_matrix (a_data, b_data, nrows, x, nplasma)
@@ -680,52 +652,82 @@ solve_matrix (a_data, b_data, nrows, x, nplasma)
      permutations. We dont use it anywhere, but in principle it can be used to refine the
      solution via gsl_linalg_LU_refine */
   double test_val;
-  double det;
+  double lndet;
 
   gsl_permutation *p;
   gsl_matrix_view m;
   gsl_vector_view b;
   gsl_vector *test_vector, *populations;
   gsl_matrix *test_matrix;
+  gsl_error_handler_t *handler;
+
+  /* Turn off gsl error hanling so that the code does not abort on error */
+
+  handler = gsl_set_error_handler_off ();
 
   ierr = 0;
   test_val = 0.0;
 
-  /* create gsl matrix/vector views of the arrays of rates */
+  /* create gsl matrix/vector views of the arrays of rates. 
+   * This is the structure that gsl uses do define an array.
+   * It contains not only the data but the dimensions, etc.*/
   m = gsl_matrix_view_array (a_data, nrows, nrows);
 
   /* these are used for testing the solution below */
   test_matrix = gsl_matrix_alloc (nrows, nrows);
   test_vector = gsl_vector_alloc (nrows);
 
-  gsl_matrix_memcpy (test_matrix, &m.matrix);   // create copy for testing 
+  gsl_matrix_memcpy (test_matrix, &m.matrix);   // create copy for testing
 
 
+  /* gsl_vector_view_array creates the structure that gsl uses to define a vector
+   * It contains the data and the dimension, and other information about where
+   * the vector is stored in memory etc.
+   */
   b = gsl_vector_view_array (b_data, nrows);
 
   /* the populations vector will be a gsl vector which stores populations */
   populations = gsl_vector_alloc (nrows);
 
 
-  p = gsl_permutation_alloc (nrows);    // NEWKSL
+  /* permuations are special structures that contain integers 0 to nrows-1, which can
+   * be manipulated */
 
-  gsl_linalg_LU_decomp (&m.matrix, p, &s);
-  
-  det = gsl_linalg_LU_det (&m.matrix, s);       // get the determinant to report to user
+  p = gsl_permutation_alloc (nrows);
 
-  if (det == 0){
-    Error ("Rate Matrix Determinant is %8.4e for cell %i\n", det, nplasma);
-		return(4);
+
+
+  /* This routine decomposes m into its LU Components.  It stores the L part in m and the
+   * U part in s and p is modified.
+   */
+
+  ierr = gsl_linalg_LU_decomp (&m.matrix, p, &s);
+
+  if (ierr)
+  {
+    Error ("Solve_matrix: gsl_linalg_LU_decomp failure %d for cell %i \n", ierr, nplasma);
+    Exit (0);
+
   }
 
-  gsl_linalg_LU_solve (&m.matrix, p, &b.vector, populations);
+  ierr = gsl_linalg_LU_solve (&m.matrix, p, &b.vector, populations);
+
+  if (ierr)
+  {
+    lndet = gsl_linalg_LU_lndet (&m.matrix);    // get the determinant to report to user
+    Error ("Solve_matrix: gsl_linalg_LU_solve failure (%d %.3e) for cell %i \n", ierr, lndet, nplasma);
+
+    return (4);
+
+
+
+  }
 
   gsl_permutation_free (p);
 
   /* JM 140414 -- before we clean, we should check that the populations vector we have just created really is a solution to
      the matrix equation */
 
-  /* gsl_blas_dgemv declaration contained in my_linalg.h, taken from gsl library */
   /* The following line does the matrix multiplication test_vector = 1.0 * test_matrix * populations The CblasNoTrans
      statement just says we do not do anything to test_matrix, and the 0.0 means we do not add a second matrix to the result
      If the solution has worked, then test_vector should be equal to b_temp */
@@ -734,7 +736,7 @@ solve_matrix (a_data, b_data, nrows, x, nplasma)
 
   if (ierr != 0)
   {
-    Error ("solve_matrix: bad return when testing matrix solution to rate equations.\n");
+    Error ("Solve_matrix: bad return when testing matrix solution to rate equations.\n");
   }
 
   /* now cycle through and check the solution to y = m * populations really is (1, 0, 0 ... 0) */
@@ -752,14 +754,14 @@ solve_matrix (a_data, b_data, nrows, x, nplasma)
     {
       if (fabs ((test_val - b_data[mm]) / test_val) > EPSILON)
       {
-        Error ("solve_matrix: test solution fails relative error for row %i %e != %e\n", mm, test_val, b_data[mm]);
+        Error ("Solve_matrix: test solution fails relative error for row %i %e != %e\n", mm, test_val, b_data[mm]);
         ierr = 2;
       }
     }
     else if (fabs (test_val - b_data[mm]) > EPSILON)    // if b_data is 0, check absolute error
 
     {
-      Error ("solve_matrix: test solution fails absolute error for row %i %e != %e\n", mm, test_val, b_data[mm]);
+      Error ("Solve_matrix: test solution fails absolute error for row %i %e != %e\n", mm, test_val, b_data[mm]);
       ierr = 3;
     }
   }
@@ -767,11 +769,13 @@ solve_matrix (a_data, b_data, nrows, x, nplasma)
   /* copy the populations to a normal array */
   for (mm = 0; mm < nrows; mm++)
     x[mm] = gsl_vector_get (populations, mm);
- 
+
   /* free memory */
   gsl_vector_free (test_vector);
   gsl_matrix_free (test_matrix);
   gsl_vector_free (populations);
+
+  gsl_set_error_handler (handler);
 
   return (ierr);
 }

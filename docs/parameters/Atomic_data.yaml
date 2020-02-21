@@ -1,7 +1,8 @@
 name: Atomic_data
 description: |
-  This is the relative path to the Atomic Data header file
+  Python uses an atomic data file, as found in the `agnwinds/data` repository.
+  This is the relative path to the Atomic Data header file on disk. See :ref:`Atomic data`
 type: String
 parent:
-  parameter: none
-file: setup_domains.c
+  System_type: [AGN, binary, star]
+file: setup_line_transfer.c

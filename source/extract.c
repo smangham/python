@@ -16,70 +16,6 @@
 #include "atomic.h"
 #include "python.h"
 
-//OLD /***********************************************************
-//OLD                                        Space Telescope Science Institute
-//OLD 
-//OLD  Synopsis:
-//OLD 
-//OLD int extract(w,p,itype) is the supervisory routine which helps normally
-//OLD 	builds detailed spectra as the photons are transit the wind.
-//OLD 
-//OLD Arguments:		
-//OLD 	PhotPtr p;	The initial photon
-//OLD 	WindPtr w;
-//OLD 	int itype	
-//PTYPE_STAR->the photon came for the star 
-//OLD 			PTYPE_BL->the photon came from the boundary layer
-//OLD 			PTYPE_DISK->the photon being redirected arose in the disk,
-//OLD 			PTYPE_WIND->the photon being redirected arose in the wind,
-//OLD Returns:
-//OLD  
-//OLD  
-//OLD Description:	
-//OLD 
-//OLD extract is called when a photon begins it's flight and every time that photon
-//OLD scatters, unless the user has exercised the "live or die" option, in
-//OLD which case it is not called.  extract calls extract_one for each spectrum
-//OLD it wants to build, where the actual incrementing of the spectrum is done.
-//OLD 
-//OLD An option allows one to construct spectra which have undergone a certain
-//OLD number of scatters.  The parameters for this option all come in through
-//OLD python.h.  
-//OLD 	If s[n].nscat>999; then one obtains the entire spectrum
-//OLD 	if s[n].nscat is a positive number, then the spectrum is composed just 
-//OLD 		of photons with that number of scatters
-//OLD 	if s[n].nscat is a negative number, then the spectrum contains all photons
-//OLD 		with >=  the absolute value of s[n].nscat
-//OLD Another option allows one to construct spectra from photons which have
-//OLD 	scattered above or below the plane of the disk.  As for the number of
-//OLD 	scatters this option comes through python.h, in this case from s[n].top_bot
-//OLD 	s[n].top_bot=0 -> accept all photons
-//OLD 	                  >0  -> accept photons last above the disk
-//OLD 	                  <0  -> accept photons below the disk
-//OLD Notes:
-//OLD 
-//OLD History:
-//OLD  	97march ksl	Coded and debugged as part of Python effort.  
-//OLD  	97aug28	ksl	Added the option which allows one to construct spectra with a
-//OLD 			specific number of scatters.
-//OLD 	97sep1	ksl	Added the option which allows one to construct spectra which
-//OLD 			originate from a specific position above or below the disk
-//OLD 	02jan	ksl	Fixed problems with itypes. (Photons which were wind photons
-//OLD 			for the purpose of extract were not being properly labelled
-//OLD 			as such, and this meant they were not doppler shifted properly.
-//OLD 			This produced photons that were further from resonance in the
-//OLD 			local frame and made the wind more transmissive, especially
-//OLD 			in the blue wing of the line.  It suggests
-//OLD 			that a lot of the absorption in extract is fairly local and
-//OLD 			that the blue wing structure could be fairly sensitive to how
-//OLD 			the doppler shift is carried out.)
-//OLD 	09feb	ksl	68b - Added hooks to track energy deposition of extracted photons
-//OLD 			in the wind 
-//OLD 	15aug	ksl	Modifications to allow multiple domains.
-//OLD 
-//OLD **************************************************************/
-
-
 
 /**********************************************************/
 /** 
@@ -235,7 +171,7 @@ one is odd. We do frequency here but weighting is carried out in  extract */
 
       if (modes.save_extract_photons && 1545.0 < 2.997925e18 / pp.freq && 2.997925e18 / pp.freq < 1565.0)
       {
-          save_extract_photons(n,p,&pp,v);
+        save_extract_photons (n, p, &pp, v);
       }
 
 /* 68b - 0902 - ksl - turn phot_history on for the middle spectrum.  Note that we have to wait
@@ -266,7 +202,7 @@ one is odd. We do frequency here but weighting is carried out in  extract */
 
 /**********************************************************/
 /** 
- * @brief      (w,pp,itype,nspec)
+ * @brief      Extract a single photon along a single line of sight.
  *
  * @param [in] WindPtr  w   The entire wind
  * @param [in] PhotPtr  pp  The photon to be extracted
@@ -354,18 +290,9 @@ some other process.
 If geo.scatter_mode==SCATTER_MODE_ISOTROPIC then there is no need 
 to reweight.  This is the isotropic assumption.  Otherwise, one
 needs to reweight
-
-NB--It is important that reweightwind be called after scatter, as there
-are variables which are set in scatter and in aniosowind that are
-used by reweightwind.  02may ksl
 */
 
-    if (geo.scatter_mode == SCATTER_MODE_ANISOTROPIC)
-    {                          
-      reweightwind (pp);
-    }
-
-    else if (geo.scatter_mode == SCATTER_MODE_THERMAL)     
+    if (geo.scatter_mode == SCATTER_MODE_THERMAL)
     {
 
       dvds = dvwind_ds (pp);
@@ -376,7 +303,7 @@ used by reweightwind.  02may ksl
       tau = 0.0;
     }
 
-/* But in any event we have to reposition wind photons so thath they don't go through
+/* But in any event we have to reposition wind photons so that they don't go through
 the same resonance again */
 
     reposition (pp);            // Only reposition the photon if it was a wind photon
@@ -384,7 +311,7 @@ the same resonance again */
 
   if (tau > TAU_MAX)
     istat = P_ABSORB;           /* Check to see if tau already too large */
-  else if (geo.binary == TRUE)  
+  else if (geo.binary == TRUE)
     istat = hit_secondary (pp); /* Check to see if it hit secondary */
 
 
@@ -404,7 +331,7 @@ the same resonance again */
     istat = translate (w, pp, 20., &tau, &nres);
     icell++;
 
-    istat = walls (pp, &pstart,normal);
+    istat = walls (pp, &pstart, normal);
     if (istat == -1)
     {
       Error ("Extract_one: Abnormal return from translate\n");
@@ -482,9 +409,9 @@ the same resonance again */
       }
 
 
-      /* Records the total distance travelled by extracted photon if in reverberation mode*/
+      /* Records the total distance travelled by extracted photon if in reverberation mode */
       if (geo.reverb != REV_NONE)
-      {                        
+      {
         if (pstart.nscat > 0 || pstart.origin > 9 || (pstart.nres > -1 && pstart.nres < nlines))
         {                       //If this photon has scattered, been reprocessed, or originated in the wind it's important
           pstart.w = pp->w * exp (-(tau));      //Adjust weight to weight reduced by extraction

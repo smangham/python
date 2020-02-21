@@ -47,7 +47,7 @@ install:
     - ./configure
 
     # do installation
-    - make install
+    - make travis_install
 
 
     #Then clone data
@@ -59,12 +59,12 @@ script:
     - echo $PWD
     - cd source/
     - make clean
-    - make CC=gcc py_wind
-    - make CC=gcc windsave2table
+    - make CC=gcc INDENT=no py_wind
+    - make CC=gcc INDENT=no windsave2table
     - make clean
     - cd ../examples/travis/
     - Setup_Py_Dir
-    - py -f balmer_test
+    - py -f -v 1 balmer_test
     - python3 ../../py_progs/balmer_decrement.py balmer_test
     - py -i cv_macro_benchmark
     - py -i cv_standard

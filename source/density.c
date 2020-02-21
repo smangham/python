@@ -8,7 +8,6 @@
  * designamted by a Pothon pointner
  *
  *
- * @bug It is not clear why this is a separate file in python. Consider incoprating into another file
  ***********************************************************/
 
 #include <stdio.h>
@@ -17,8 +16,6 @@
 
 #include "atomic.h"
 #include "python.h"
-
-
 
 
 /**********************************************************/

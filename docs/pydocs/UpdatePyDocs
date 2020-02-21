@@ -1,3 +1,0 @@
-# This generates new versions of the documentation files for the routines in py_progs
-rm *.html
-../../py_progs/write_docs.py ../../py_progs

@@ -17,9 +17,7 @@
 #include <string.h>
 #include <stdlib.h>
 
-
 #include "log.h"
-
 
 
 /**********************************************************/
@@ -117,6 +115,7 @@ bilin (x, x00, x01, x10, x11, f, g)
   double q[3], r[3], s[3], t[3];
   double zz[3];
   int i, xquadratic ();
+  void Exit (int error_code);
 
 
   z = 0;                        /* Initialize z to prevent warning on compilation */
@@ -193,7 +192,7 @@ bilin (x, x00, x01, x10, x11, f, g)
     else
     {
       Error ("bilin: Denominator zero\n");
-      exit (0);
+      Exit (0);
     }
   }
 
@@ -252,7 +251,7 @@ xquadratic (a, b, c, r)
       return (-1);              /* The roots are extremely imaginary, since both a a b were 0 */
     }
 
-    r[0] = r[1] = (-c / b);     
+    r[0] = r[1] = (-c / b);
 
     if (r[0] < 0.0)
       return (-2);              /* Generally speaking we are not interested in

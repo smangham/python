@@ -1,0 +1,33 @@
+Title
+=====
+Description.
+Use :ref:`Parameter.name` to link to other parameters, or other pages within the documentation.
+
+
+Type
+  Enumerator
+
+Values
+
+  option
+    Description
+    Multi-line if desired
+
+  other
+    More description
+
+    Child(ren)
+    * :ref:`Corona.radmin`
+
+  yet_another
+    More description
+
+    Child(ren)
+    * :ref:`KWD.rmin`
+    * :ref:`KWD.rmax`
+
+File
+  `filename.c <https://github.com/agnwinds/python/blob/master/source/filename.c>`_
+
+Parent(s)
+  * :ref:`System_type`: `agn`, `binary`

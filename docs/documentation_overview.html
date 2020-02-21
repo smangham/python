@@ -6,30 +6,125 @@
   </head>
   <body>
     <h1>Documentation Overview</h1>
-    <p>We are currently working to improve documentation for
-      Python.&nbsp; This is an ongoing challenge.<br>
-    </p>
-    <p>At present the main resources are as follows:<br>
-    </p>
+    <p> Note:&nbsp; Documentation is an ongoing effort, and is not up to
+      date. </p>
+    <p> At present the main resources are as follows: </p>
     <ul>
       <li>A draft version of a <a href="cookbook.pdf">cookbook</a>
         which describes how to install&nbsp; and update Python and run a
         first model</li>
-      <li>A <a href="html/index.html">ReadTheDocs</a> repository which
-        gives information about all of the input parameters</li>
-      <li>A <a href="pydocs/doc_py_progs.html">pydocs repository </a>which
-
-        provides information about the python scripts contained in
+      <li> A <a href="sphinx/html/index.html">Sphinx</a> repository,
+        which ultimately will be the main documention for Python</li>
+      <ul>
+        <li>This is part of the Python distribution.&nbsp; All of the
+          files are tracked in git </li>
+        <li>This is also available on Readthedocs <a
+            href="https://agnwinds.readthedocs.io/en/readthedocs/">here.</a>
+          Note this link may not be the correct one in the end)<br>
+        </li>
+      </ul>
+      <ul>
+        <li> This documentation needs to be updated when parameters have
+          been changed, or if the yaml files have been updated. </li>
+        <li> Instructions on how to do the updates are <href="rst
+            meta.html"="">locally is <a href="./sphinx/html/meta.html">here</a>
+            <br>
+          </href="rst></li>
+        <li> It requires a software package known as <a
+            href="http://www.sphinx-doc.org/en/master/">sphinx</a></li>
+        <li>The command to generate the repository is currently:</li>
+        <ul>
+          <li>cd docs/sphinx/; make html<br>
+          </li>
+        </ul>
+      </ul>
+      <li> A <a href="pydocs/doc_py_progs.html">pydocs repository</a>
+        which provides information about the python scripts contained in
         $PYTHON/py_progs</li>
-      <li>A <a href="doxygen/html/index.html">Doxygen repositiory, </a>which
-        provides information about the source code.<br>
-      </li>
+      <ul>
+        <li>These files are also tracked by git.&nbsp; <br>
+        </li>
+        <li>The documentation should be updated if new python routines
+          are added to py_progs, or if modifications to the _doc_
+          strings are made in existing programs</li>
+        <li>To regenerate them, use the routine write_docs.py which is
+          in py_progs.&nbsp; <br>
+        </li>
+        <li>Issue the following command from the docs/pydocs
+          directory.&nbsp; <br>
+        </li>
+        <ul>
+          <li>../../py_progs/write_docs.py ../../py_progs</li>
+        </ul>
+        <li>No special sofware is required, except that the package
+          MarkupPy may need to be installed <br>
+        </li>
+        <ul>
+          <li>pip install MarkupPy<br>
+          </li>
+        </ul>
+      </ul>
+      <li>A <a href="doxygen/html/index.html">Doxygen repository, </a>which
+
+        provides information about the source code.</li>
+      <ul>
+        <li>Unlike the other documentation, the Doxygen information is
+          not part of the repository.&nbsp;&nbsp; Therefore if you want
+          this, one will have to run software to generate the
+          documeantions<br>
+        </li>
+        <li>To do this, one must go to the docs/doxygen directory and
+          run</li>
+        <ul>
+          <li>doxygen python_docs.config</li>
+        </ul>
+        <li>Of course the assumes that you have doxygen <br>
+        </li>
+        <ul>
+          <li>The Doxygen home page is <a href="http://www.doxygen.nl/">here</a>.&nbsp;
+
+
+
+            <br>
+          </li>
+          <li>To get the graphs that show which routines call which
+            other routines, you also need to have the dot tool from <a
+              href="http://www.graphviz.org/">Graphviz</a> installed as
+            well.&nbsp; <br>
+          </li>
+        </ul>
+      </ul>
     </ul>
     <p><br>
-      We are working on a reference guide and we are working on adding
-      Doxygen comments for the code.&nbsp; <br>
+      Comments:<br>
     </p>
-    <p>ksl - 180214 <br>
+    <ul>
+      <li>The S/W discussed above is readily available on various
+        package distributions, e.g <a href="https://brew.sh/">Homebrew</a>
+        or <a href="http://www.finkproject.org/">Fink</a> or <a
+          href="https://www.macports.org/">MacPorts</a> for Macs or one
+        can use conda.&nbsp; Presumably, various linux package managers
+        contain as well. &nbsp; <br>
+      </li>
+      <ul>
+        <li>The Homebrew command for Sphinx is simply "brew install
+          Sphinx"<br>
+        </li>
+        <li>The Homebrew command for doxygen is simply "brew install
+          doxygen"</li>
+        <li>The Homebrew command for GraphViz is similarly "brew install
+          GraphViz" <br>
+        </li>
+      </ul>
+      <li>Alternatively, one can go to&nbsp; the home pages and download
+        and install using the instruction provided.<br>
+      </li>
+    </ul>
+    <ul>
+    </ul>
+    <p><br>
+      <br>
+      <br>
     </p>
   </body>
 </html>

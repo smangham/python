@@ -1,0 +1,10 @@
+name: Corona.radmin
+description: |
+    The corona is a box-shaped region which sits immediately
+    above the disk. radmin defines the inner edge of the box.
+type: Double
+unit: cm
+values: Greater than :ref:`Central_object.radius`
+parent:
+  Wind.type: corona
+file: corona.c

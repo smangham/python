@@ -1,7 +1,7 @@
 # Python
 
 Python is a (confusingly named) Monte Carlo radiative transfer code which uses the Sobolev approximation.
-It has been developed by Knox Long, Christian Knigge, Stuart Sim, Nick Higginbottom, James Matthews and Sam Mangham. 
+It has been developed by Knox Long, Christian Knigge, Stuart Sim, Nick Higginbottom, James Matthews, Sam Mangham and Edward Parkinson.
 The code has been used for a variety of research projects invovling the winds of cataclysmic variables, of young stellar 
 objects, and of AGN.
 
@@ -31,14 +31,16 @@ Once you have the files, you need to cd to the new directory and set your enviro
     $ export PYTHON = /path/to/python/
     $ cd $PYTHON 
     $ ./configure
-    $ make install
+    $ make install  (or better make install 2>&1 | tee today.txt)
     $ make clean
 
-note that export syntax is for bash- for csh use 
+If you have any difficulties with the installation, please submit an issue, along with the file today.txt
+
+Note that the export syntax is for bash- for csh use 
   
     $ setenv PYTHON /path/to/python/
 
-Atomic data is stored in our [data repository](https://github.com/agnwinds/data) with it's own releases page. one should unzip these files and place them in a $PYTHON/data folder.
+Atomic data is stored in our [data repository](https://github.com/agnwinds/data) with its own releases page. one should unzip these files and place them in a $PYTHON/data folder.
 
 A development user may want to work on atomic data as part of their work, and pull in changes as they are made, in which case we recommend cloning the data repository:
 
@@ -61,4 +63,4 @@ and run the code by typing, e.g.
 
 Please see the [wiki](https://github.com/agnwinds/python/wiki/Installing-and-Running-Python) and docs folder for how to use the code.
 
-Any comments, email jm8g08@soton.ac.uk or long@stsci.edu.
+Any comments, email one of the addresses above.

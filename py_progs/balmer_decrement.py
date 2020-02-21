@@ -2,7 +2,7 @@
 '''
 	balmer_decrement.py 
 
-runs tests of of the Balmer decrement for a one zone 
+runs tests of the Balmer decrement for a one zone 
 thin shell Python model. Involves running py_wind on
 a wind_save file and reading some output files. Compares
 to Osterbrock values.
@@ -15,7 +15,11 @@ Requirements:
 	py_wind
 	numpy 
 	matplotlib 
-	py_plot_util, py_read_output from $PYTHON/py_progs in the python path 
+        py_plot_util, py_read_output from $PYTHON/py_progs in the python path 
+Notes:
+    This routine is a routine to check the reulsts of running a one zone
+    model intended to produce the Balmer decrements.  It does not run the
+    model but meery checks it
 '''
 import numpy as np 
 import py_plot_util as util 
@@ -36,7 +40,7 @@ def BalmerTest(root, plotit=True):
 	to Osterbrock values.
 	'''
 
-	print ("Running Balmer Test for run {}".format(root))
+	print ("Running Balmer Test for run {}...".format(root))
 
 	# create the list of commands to run in py wind
 	nlevels = 8
@@ -74,7 +78,8 @@ def BalmerTest(root, plotit=True):
 
 	# define a 0 or 1 pass or fail 
 	pass_fail = (np.fabs(ratios/ratios[1] - osterbrock_ratios)/ osterbrock_ratios) 
-	print ("\nArray of line ratio relative errors for Balmer series:\n", pass_fail)
+	print ("\n----------------------------------")
+	print ("\n\nArray of line ratio relative errors for Balmer series:\n", pass_fail)
 
 	return (np.all(pass_fail < TOLERANCE))
 	
@@ -102,6 +107,7 @@ if __name__ == "__main__":
 			# Tell the user whether the test is passed. 
 			print ("\nTest passed?:", ifail) 
 			if ifail == False: # possible this should be an exception instead?
+				print ("ERROR: Balmer emissivities did not match those expected\n")
 				sys.exit(-1)
 	else: 
 		print (__doc__)

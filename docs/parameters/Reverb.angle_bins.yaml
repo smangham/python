@@ -1,0 +1,11 @@
+name: Reverb.angle_bins
+description: |
+  Used when generating 3d .vtk output files for visualisation. Sets the number
+  of angle bins used in the output. Aesthetic only; bigger makes prettier meshes
+  with larger filesizes.
+type: Integer
+values: Greater than 0
+default: 100
+parent:
+  Reverb.visualisation: [vtk, both]
+file: setup_reverb.c

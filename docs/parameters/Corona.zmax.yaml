@@ -1,0 +1,10 @@
+name: Corona.zmax
+description: |
+    The corona is a box-shaped region which sits immediately
+    above the disk.  zmax defines the height of the box.
+type: Double
+unit: cm
+values: Greater than that the radius of the central object
+parent:
+  Wind.type: corona
+file: corona.c

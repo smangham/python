@@ -9,9 +9,9 @@ as calculated by python.  This is the main routine.
  *
  *
  * Arguments:
- * 
+ *
  * py_wind [-h] [-s] [-p parameter_file] [root]
- * 
+ *
  * where
  * * -h 	prints out a short help file and exits (see help routine below)
  * * -s	causes certain parameters in the windsave file to be printed out
@@ -30,28 +30,28 @@ as calculated by python.  This is the main routine.
  *
  *
  * Description:
- * 
+ *
  * Py_wind simply reads and then displays portions of the wind file created by python.
  * It can select various parameters from the wind and it can write them to files so that
  * the variables can be plotted.
- * 
+ *
  * The normal mode of running py_wind is to run it interactively.  As you run it interactively
  * the variables you select are displayed ont the screen.  The variables that you display
  * can also be written to files (depending on the answer to the question Make_files)
- * 
+ *
  * The commands that were executed in the interactive will be stored in py_wind.pf (if you end
  * with a "q", and not an EOF response to the choice question)  EOF terminates the program
  * at that point before the command file is written to py_wind.pf
- * 
+ *
  * The py_wind.pf file is useful if you want to run the exact same set of commands on another
  * windfile. You should rename py_wind.pf to something_else.pf and run py_wind on that
  * data set using the -p something_else.pf option
- * 
+ *
  * The command_line switches -d and -s are intended to produce a standard set of output files sufficient
  * for many purposes.
- * 
+ *
  * ###Notes####
- * 
+ *
  * The files that are produced  can contain either the original gridding which was used by python, in which
  * case the file prefix will be "x.", or "z", in which case it will be regridded to a
  * linear array.  This option is intended so one can create a contour plot more easily.
@@ -71,25 +71,27 @@ as calculated by python.  This is the main routine.
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+
 #include "atomic.h"
 #include "python.h"
 
-
 //char *choice_options;
 
-/* 111125 - ksl - Replaced print statements giving choices with a string. The point is to be able to include
+
+/**********************************************************/
+/** 111125 - ksl - Replaced print statements giving choices with a string. The point is to be able to include
  * the choices in the help string  Note carefullly the format if you revise this
  * lines should end with \n\  to make the string continue.  Do not leave any trailing spaces after the last
  * \ to avoid warnings
- */
-
+ *
+ **********************************************************/
 char *choice_options = "\n\
     1=onefile summary 2=all ions in a given cell\n\
  	 n=ne,  R=rho,  v=vel,         i=ion info, j=ave_tau, f=ave_freq, p=nphot, S=sim_alpha\n\
    r=t_r, t=t_e,  w=rad_weight,  s=vol,     l=lum,     C=cooling/heating,  b=adiabatic cooling\n\
    a=abs,         L=line lum,    g=photo,   h=recomb,  k=tau H,     m=F_rad, x=total, y=mod_te,\n\
    o=overview,    e=everything,  P=Partial emission meas,  I=Ionisation parameter\n\
-   W=wind_region, D=dvds_ave,    X=position summary, M=macro atom info, G=inner shell\n\
+   W=wind_region, D=dvds_ave,    X=position summary, M=macro atom info *=shock heating \n\
    d=convergence status  E=convergence_all_info   B=PlasmaPtr  J=Radiation density\n\
    H=All Heating and Cooling mechanisms in one shot  O=Spectral model parameters S=Spectral models\n\
    z=Zoom,u=unZoom,Z=switch to/from raw and yz projected modes, F=Create files, A=Change file write defaults\n\
@@ -97,7 +99,7 @@ char *choice_options = "\n\
 
 
 /**********************************************************/
-/** @name      main
+/**
  * @brief      py_wind is a program which can be used to display various parameters of a wind
  * 		as calculated by python.  This is the  main routine
  *
@@ -109,24 +111,24 @@ char *choice_options = "\n\
  * Py_wind simply reads and then displays portions of the wind file created by python.
  * 	It can select various parameters from the wind and it can write them to files so that
  * 	the variables can be plotted.
- * 
+ *
  * 	The normal mode of running py_wind is to run it interactively.  As you run it interactively
  * 	the variables you select are displayed ont the screen.  The variables that you display
  * 	can also be written to files (depending on the answer to the question Make_files)
- * 
+ *
  * 	The commands that were executed in the interactive will be stored in py_wind.pf (if you end
  * 	with a "q", and not an EOF response to the choice question)  EOF terminates the program
  * 	at that point before the command file is written to py_wind.pf
- * 
+ *
  * 	The py_wind.pf file is useful if you want to run the exact same set of commands on another
  * 	windfile. You should rename py_wind.pf to something_else.pf and run py_wind on that
  * 	data set using the -p something_else.pf option
- * 
+ *
  * 	The command_line switches -d and -s are intended to produce a standard set of output files sufficient
  * 	for many purposes.
  *
  * 	The main routine gets the input data, and repeately presents the user with a set of choices (in interactive
- * 	mode) until the users dicides she has had enough.  The case statements that are used to select what to do based 
+ * 	mode) until the users dicides she has had enough.  The case statements that are used to select what to do based
  * 	on user inputs are (now) contained in the subroutine one_choice
  *
  * ### Notes ###
@@ -151,6 +153,7 @@ main (argc, argv)
   char windradfile[LINELENGTH], windsavefile[LINELENGTH];
   char parameter_file[LINELENGTH];
   char photfile[LINELENGTH];
+  char *fgets_rc;
   double freq;
   int interactive;
 
@@ -171,7 +174,12 @@ main (argc, argv)
   if (argc == 1)
   {
     printf ("Root for wind file :");
-    fgets (input, LINELENGTH, stdin);
+    fgets_rc = fgets (input, LINELENGTH, stdin);
+    if (!fgets_rc)
+    {
+      Error ("Input rootname is NULL or EOF\n");
+      exit (1);                 // Exit if NULL returned
+    }
     get_root (root, input);
   }
   else
@@ -357,7 +365,7 @@ I did not change this now.  Though it could be done.  02apr ksl */
 
 
 /**********************************************************/
-/** @name      one_choice
+/**
  * @brief      Process a request to display one variable
  *
  * @param [in] char  choice   A character indicating the
@@ -408,6 +416,9 @@ one_choice (choice, root, ochoice)
   case 'B':
     plasma_cell (wmain, root, ochoice);
     break;
+  case 'c':
+    flux_summary (wmain, root, ochoice);
+    break;
   case 'C':                    /*the ratio cooling to heating */
     coolheat_summary (wmain, root, ochoice);
     break;
@@ -432,9 +443,9 @@ one_choice (choice, root, ochoice)
   case 'g':                    /*n photo */
     photo_summary (wmain, root, ochoice);
     break;
-  case 'G':                    /* inner shell summary */
-    inner_shell_summary (wmain, root, ochoice);
-    break;
+//  case 'G':    Removed relevant data from python so option removed May 18         /* inner shell summary */
+//    inner_shell_summary (wmain, root, ochoice);
+//    break;
   case 'h':                    /*n photo */
     Log ("Don't get discouraged.  This takes a little while!");
     recomb_summary (wmain, root, ochoice);
@@ -467,7 +478,7 @@ one_choice (choice, root, ochoice)
     lambda = 1550;
 
     rddoub ("wavelength", &lambda);
-    freq = C / (lambda * 1.e-8);
+    freq = VLIGHT / (lambda * 1.e-8);
 
     while (rdint ("element(0=return)", &n) != EOF)
     {
@@ -623,7 +634,10 @@ one_choice (choice, root, ochoice)
     grid_summary (wmain, root, ochoice);        //
     break;
   case '&':
-    collision_summary (wmain, root, ochoice);        //
+    collision_summary (wmain, root, ochoice);   //
+    break;
+  case '*':
+    shock_heating_summary (wmain, root, ochoice);
     break;
 
   case 'q':                    /* quit */
@@ -641,11 +655,11 @@ one_choice (choice, root, ochoice)
 
 
 /**********************************************************/
-/** @name      py_wind_help
+/**
  * @brief      print out some helpful information to the screen
  * 	and exits
  *
- * @return     N/A since the program exits once the help is 
+ * @return     N/A since the program exits once the help is
  * written
  *
  * @details
@@ -662,7 +676,7 @@ one_choice (choice, root, ochoice)
  *
  **********************************************************/
 
-int
+void
 py_wind_help ()
 {
 

@@ -32,7 +32,7 @@ Description:
 Primary routines:
 
     steer  Processes the command line options and then calls do_all_angles
-    do_all_angles Produces the plot 
+    do_all_angles Produces the plot  (do_all_angles(root) is the routine to call from a script
 
 Notes:
                                        
@@ -130,10 +130,11 @@ def do_all_angles_ev(rootname='sv',smooth=21,emin=1000,emax=9000,fmax=0,fig_no=1
         regime
     '''
 
+
     if rootname.count('.')>0:
         filename=rootname
         rootname=rootname[0:rootname.rindex('.')]
-        print('test',rootname)
+        # print('test',rootname)
     else:
         filename=rootname+'.spec'
 
@@ -170,8 +171,10 @@ def do_all_angles_ev(rootname='sv',smooth=21,emin=1000,emax=9000,fmax=0,fig_no=1
     pylab.figure(fig_no,(9,6))
     pylab.clf()
 
+
     for col in cols:
         flux=data[col]
+        # print(flux)
         xlabel=col+'$^{\circ}$'
         q=convolve(flux,boxcar(smooth)/float(smooth),mode='same')
         pylab.semilogx(data['Freq.']*HEV,q*data['Freq.'],'-',label=xlabel)
@@ -191,7 +194,7 @@ def do_all_angles_ev(rootname='sv',smooth=21,emin=1000,emax=9000,fmax=0,fig_no=1
 
 
 
-def do_all_angles(rootname='sv',smooth=21,wmin=850,wmax=1850,fmax=0,fig_no=1):
+def do_all_angles(rootname='sv',smooth=21,wmin=850,wmax=1850,fmax=0,fig_no=1, title=None):
     '''
     Plot each of the spectra where
 
@@ -210,11 +213,10 @@ def do_all_angles(rootname='sv',smooth=21,wmin=850,wmax=1850,fmax=0,fig_no=1):
     try:
         data=ascii.read(filename)
     except IOError:
-        print('Errro: Could not find %s' % filename)
+        print('Error: Could not find %s' % filename)
         return
 
-
-    print(data.colnames)
+    # print(data.colnames)
 
     # Now determine what the coluns containing real spectra are
     # while makeing the manes simpler
@@ -250,8 +252,11 @@ def do_all_angles(rootname='sv',smooth=21,wmin=850,wmax=1850,fmax=0,fig_no=1):
     pylab.figure(fig_no,(9,6))
     pylab.clf()
 
+    # print(cols)
+
     for col in cols:
         flux=data[col]
+        # print(flux)
         xlabel=col+'$^{\circ}$'
         q=convolve(flux,boxcar(smooth)/float(smooth),mode='same')
         pylab.plot(data['Lambda'],q,'-',label=xlabel)
@@ -263,7 +268,9 @@ def do_all_angles(rootname='sv',smooth=21,wmin=850,wmax=1850,fmax=0,fig_no=1):
     else:
         pylab.axis((wmin,wmax,0,fmax))
 
-    pylab.title(root)
+    if title == None:
+        title = root
+    pylab.title(title)
     pylab.legend(loc='best')
     pylab.draw()
     pylab.savefig(root+'.png')

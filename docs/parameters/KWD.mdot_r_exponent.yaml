@@ -1,0 +1,11 @@
+name: KWD.mdot_r_exponent
+description: |
+  The exponent for the mass loss rate as defined in the KWD model,
+  m_dot(r) = F(r) ** alpha = T(r) ** (4 * alpha).
+  F is the local luminous flux and T is the local temperature at a radius R. A
+  value of 0 sets a uniform mass loss rate.
+type: Double
+values: Greater than or equal to 0
+parent:
+  Wind.type: kwd
+file: knigge.c

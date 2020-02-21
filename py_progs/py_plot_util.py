@@ -143,7 +143,7 @@ def wind_to_masked(d, value_string, return_inwind=False, mode="2d"):
 	if mode == "1d":
 		inwind = d["inwind"]
 		x = d["r"]
-		values = d["var"]
+		values = d[value_string]
 
 		# create an inwind boolean to use to create mask
 		inwind_bool = (inwind >= 0)

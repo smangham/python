@@ -1,0 +1,14 @@
+name: Corona.vel_frac
+description: |
+  For the coronal model, the azimuthal velocity is
+  given by the velocity of the underlying disk.  One
+  can also give the corona a radial velocity, which is
+  a fraction of the disk velocity.  (As coded, if this
+  number is positive, the velicty is the r direction is
+  toward the central object).
+type: Double
+unit: Disk velocity
+values: Any, 0 implies no radial velocity.
+parent:
+  Wind.type: corona
+file: corona.c

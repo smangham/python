@@ -9,42 +9,37 @@
  *
  ***********************************************************/
 
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
 
 #include "atomic.h"
-
 #include "python.h"
 
 
-
-
-
 /**********************************************************/
-/** 
+/**
  * @brief      calculate the distance to the far
  * boundary of the cell in which the photon bundle when dealing
  * with a cylindrical domain
  *
- * @param [in, out] int  ndom   The number of the domain of interest
- * @param [in, out] PhotPtr  p   Photon pointer
- * @return     distance to the far boundary of the cell 
+ * @param [in] ndom   The number of the domain of interest
+ * @param [in] p   Photon pointer
+ * @return     distance to the far boundary of the cell
  *
  * Negative numbers (and zero) should be
  * regarded as errors.
  *
  * @details
- * 
- * This routine solves the quadratic equaitons that allow one
+ *
+ * This routine solves the quadratic equations that allow one
  * to determine the distance a photon can travel within a cylindrical
- * cell before hitting the edge of the cell.  
+ * cell before hitting the edge of the cell.
  *
  *
  * ### Notes ###
  *
- * The distance if the smallest positive root of the quadratic 
+ * The distance if the smallest positive root of the quadratic
  * equation.
  *
  *
@@ -66,24 +61,24 @@ cylind_ds_in_cell (ndom, p)
 
 
 
-  /* The next lines should be unnecessary; they check/update 
-   * the cell number for the photon.   
+  /* The next lines should be unnecessary; they check/update
+   * the cell number for the photon.
    */
 
 
   if ((p->grid = n = where_in_grid (ndom, p->x)) < 0)
+  {
+    if (modes.save_photons)
     {
-      if (modes.save_photons)
-	{
-	  save_photons (p, "NotInGrid_cylind_ds_in_cell");
-	}
-
-      return (n);		/* Photon was not in wind */
+      save_photons (p, "NotInGrid_cylind_ds_in_cell");
     }
 
-  wind_n_to_ij (ndom, n, &ix, &iz);	/*Convert the index n to two dimensions */
+    return (n);                 /* Photon was not in wind */
+  }
 
-  smax = VERY_BIG;		
+  wind_n_to_ij (ndom, n, &ix, &iz);     /*Convert the index n to two dimensions */
+
+  smax = VERY_BIG;
 
   /* Set up the quadratic equations in the radial rho direction */
 
@@ -91,16 +86,13 @@ cylind_ds_in_cell (ndom, p)
   b = 2. * (p->lmn[0] * p->x[0] + p->lmn[1] * p->x[1]);
   c = p->x[0] * p->x[0] + p->x[1] * p->x[1];
 
-  iroot = quadratic (a, b, c - zdom[ndom].wind_x[ix] * zdom[ndom].wind_x[ix], root);	/* iroot will be the smallest positive root
-											   if one exists or negative otherwise */
+  iroot = quadratic (a, b, c - zdom[ndom].wind_x[ix] * zdom[ndom].wind_x[ix], root);    /* iroot will be the smallest positive root
+                                                                                           if one exists or negative otherwise */
 
   if (iroot >= 0 && root[iroot] < smax)
     smax = root[iroot];
 
-  iroot =
-    quadratic (a, b,
-	       c - zdom[ndom].wind_x[ix + 1] * zdom[ndom].wind_x[ix + 1],
-	       root);
+  iroot = quadratic (a, b, c - zdom[ndom].wind_x[ix + 1] * zdom[ndom].wind_x[ix + 1], root);
 
   if (iroot >= 0 && root[iroot] < smax)
     smax = root[iroot];
@@ -111,21 +103,21 @@ cylind_ds_in_cell (ndom, p)
   z1 = zdom[ndom].wind_z[iz];
   z2 = zdom[ndom].wind_z[iz + 1];
   if (p->x[2] < 0)
-    {				/* We need to worry about which side of the plane the photon is on! */
-      z1 *= (-1.);
-      z2 *= (-1.);
-    }
+  {                             /* We need to worry about which side of the plane the photon is on! */
+    z1 *= (-1.);
+    z2 *= (-1.);
+  }
 
   if (p->lmn[2] != 0.0)
-    {
-      q = (z1 - p->x[2]) / p->lmn[2];
-      if (q > 0 && q < smax)
-	smax = q;
-      q = (z2 - p->x[2]) / p->lmn[2];
-      if (q > 0 && q < smax)
-	smax = q;
+  {
+    q = (z1 - p->x[2]) / p->lmn[2];
+    if (q > 0 && q < smax)
+      smax = q;
+    q = (z2 - p->x[2]) / p->lmn[2];
+    if (q > 0 && q < smax)
+      smax = q;
 
-    }
+  }
 
   return (smax);
 }
@@ -135,12 +127,12 @@ cylind_ds_in_cell (ndom, p)
 
 
 /**********************************************************/
-/** 
+/**
  * @brief      defines the cells in a cylindrical grid
  *
  * @param [in] int  ndom   The domain number of interest
  * @param [in] WindPtr  w   The structure which defines the wind in Python
- * @return   Always returns 0 
+ * @return   Always returns 0
  *
  * @details
  *
@@ -166,16 +158,16 @@ cylind_make_grid (ndom, w)
   one_dom = &zdom[ndom];
 
   if (zdom[ndom].zmax == 0)
-    {
-      /* Check if zmax has been set, and if not set it to rmax */
-      zdom[ndom].zmax = zdom[ndom].rmax;
-    }
+  {
+    /* Check if zmax has been set, and if not set it to rmax */
+    zdom[ndom].zmax = zdom[ndom].rmax;
+  }
 
 
   Log ("cylind_make_grid: Making cylindrical grid %d\n", ndom);
   Log ("cylind_make_grid: rmax %e for domain %d\n", one_dom->rmax, ndom);
 
-  /* In order to interpolate the velocity (and other) vectors out to geo.rmax, we need
+  /* In order to interpolate the velocity (and other) vectors out to zdom[ndom].rmax, we need
      to define the wind at least one grid cell outside the region in which we want photons
      to propagate.  */
 
@@ -183,85 +175,71 @@ cylind_make_grid (ndom, w)
   /* First calculate parameters that are to be calculated at the edge of the grid cell.  This is
      mainly the positions and the velocity */
   for (i = 0; i < one_dom->ndim; i++)
+  {
+    for (j = 0; j < one_dom->mdim; j++)
     {
-      for (j = 0; j < one_dom->mdim; j++)
-	{
-	  wind_ij_to_n (ndom, i, j, &n);
-	  w[n].x[1] = w[n].xcen[1] = 0;	/*The cells are all defined in the xz plane */
+      wind_ij_to_n (ndom, i, j, &n);
+      w[n].x[1] = w[n].xcen[1] = 0;     /*The cells are all defined in the xz plane */
 
-	  /*Define the grid points */
-	  if (one_dom->log_linear == 1)
-	    {			// linear intervals
+      /*Define the grid points */
+      if (one_dom->log_linear == 1)
+      {                         // linear intervals
 
-	      dr = one_dom->rmax / (one_dom->ndim - 3);
-	      dz = one_dom->zmax / (one_dom->mdim - 3);
-	      w[n].x[0] = i * dr;	/* The first zone is at the inner radius of
-					   the wind */
-	      w[n].x[2] = j * dz;
-	      w[n].xcen[0] = w[n].x[0] + 0.5 * dr;
-	      w[n].xcen[2] = w[n].x[2] + 0.5 * dz;
+        dr = one_dom->rmax / (one_dom->ndim - 3);
+        dz = one_dom->zmax / (one_dom->mdim - 3);
+        w[n].x[0] = i * dr;     /* The first zone is at the inner radius of
+                                   the wind */
+        w[n].x[2] = j * dz;
+        w[n].xcen[0] = w[n].x[0] + 0.5 * dr;
+        w[n].xcen[2] = w[n].x[2] + 0.5 * dz;
 
-	    }
-	  else
-	    {			//logarithmic intervals
+      }
+      else
+      {                         //logarithmic intervals
 
-	      dlogr =
-		(log10 (one_dom->rmax / one_dom->xlog_scale)) /
-		(one_dom->ndim - 3);
-	      dlogz =
-		(log10 (one_dom->zmax / one_dom->zlog_scale)) /
-		(one_dom->mdim - 3);
+        dlogr = (log10 (one_dom->rmax / one_dom->xlog_scale)) / (one_dom->ndim - 3);
+        dlogz = (log10 (one_dom->zmax / one_dom->zlog_scale)) / (one_dom->mdim - 3);
 
-	      if (dlogr <= 0)
-		{
-		  Error
-		    ("cylindrical: dlogr %g is less than 0.  This is certainly wrong! Aborting\n",
-		     dlogr);
-		  exit (0);
-		}
+        if (dlogr <= 0)
+        {
+          Error ("cylindrical: dlogr %g is less than 0.  This is certainly wrong! Aborting\n", dlogr);
+          Exit (0);
+        }
 
-	      if (dlogz <= 0)
-		{
-		  Error
-		    ("cylindrical: dlogz %g is less than 0.  This is certainly wrong! Aborting\n",
-		     dlogz);
-		  exit (0);
-		}
+        if (dlogz <= 0)
+        {
+          Error ("cylindrical: dlogz %g is less than 0.  This is certainly wrong! Aborting\n", dlogz);
+          Exit (0);
+        }
 
-	      if (i == 0)
-		{
-		  w[n].x[0] = 0.0;
-		  w[n].xcen[0] = 0.5 * one_dom->xlog_scale;
-		}
-	      else
-		{
-		  w[n].x[0] =
-		    one_dom->xlog_scale * pow (10., dlogr * (i - 1));
-		  w[n].xcen[0] =
-		    0.5 * one_dom->xlog_scale * (pow (10., dlogr * (i - 1)) +
-						 pow (10., dlogr * (i)));
-		}
+        if (i == 0)
+        {
+          w[n].x[0] = 0.0;
+          w[n].xcen[0] = 0.5 * one_dom->xlog_scale;
+        }
+        else
+        {
+          w[n].x[0] = one_dom->xlog_scale * pow (10., dlogr * (i - 1));
+          w[n].xcen[0] = 0.5 * one_dom->xlog_scale * (pow (10., dlogr * (i - 1)) + pow (10., dlogr * (i)));
+        }
 
-	      if (j == 0)
-		{
-		  w[n].x[2] = 0.0;
-		  w[n].xcen[2] = 0.5 * one_dom->zlog_scale;
-		}
-	      else
-		{
-		  w[n].x[2] = one_dom->zlog_scale * pow (10, dlogz * (j - 1));
-		  w[n].xcen[2] =
-		    0.5 * one_dom->zlog_scale * (pow (10., dlogz * (j - 1)) +
-						 pow (10., dlogz * (j)));
-		}
-	    }
+        if (j == 0)
+        {
+          w[n].x[2] = 0.0;
+          w[n].xcen[2] = 0.5 * one_dom->zlog_scale;
+        }
+        else
+        {
+          w[n].x[2] = one_dom->zlog_scale * pow (10, dlogz * (j - 1));
+          w[n].xcen[2] = 0.5 * one_dom->zlog_scale * (pow (10., dlogz * (j - 1)) + pow (10., dlogz * (j)));
+        }
+      }
 
-	  xfudge =
-	    fmin ((w[n].xcen[0] - w[n].x[0]), (w[n].xcen[2] - w[n].x[2]));
-	  w[n].dfudge = XFUDGE * xfudge;
+      xfudge = fmin ((w[n].xcen[0] - w[n].x[0]), (w[n].xcen[2] - w[n].x[2]));
+      w[n].dfudge = XFUDGE * xfudge;
 
-	}
     }
+  }
 
   return (0);
 }
@@ -270,9 +248,9 @@ cylind_make_grid (ndom, w)
 
 
 /**********************************************************/
-/** 
+/**
  * @brief      Create arrays that are used for interpolating
- * quantities, such as density and velocity 
+ * quantities, such as density and velocity
  *
  * @param [in] int  ndom   The domain number of interest
  * @param [in] WindPtr  w   The entire wind
@@ -280,10 +258,11 @@ cylind_make_grid (ndom, w)
  *
  *
  * @details
- * This simple little routine just populates two one dimensional arrays that are used for interpolation.
+ * This simple little routine just populates two one dimensional arrays
+ * that are used for interpolation.
  *
  * ### Notes ###
- * 
+ *
  * There is an analogous routine for each different type of coordinate
  * system
  *
@@ -313,41 +292,36 @@ cylind_wind_complete (ndom, w)
     one_dom->wind_z[j] = w[nstart + j].x[2];
 
   for (i = 0; i < one_dom->ndim - 1; i++)
-    one_dom->wind_midx[i] =
-      0.5 * (w[nstart + i * mdim].x[0] + w[nstart + (i + 1) * mdim].x[0]);
+    one_dom->wind_midx[i] = 0.5 * (w[nstart + i * mdim].x[0] + w[nstart + (i + 1) * mdim].x[0]);
 
   for (j = 0; j < one_dom->mdim - 1; j++)
-    one_dom->wind_midz[j] =
-      0.5 * (w[nstart + j].x[2] + w[nstart + j + 1].x[2]);
+    one_dom->wind_midz[j] = 0.5 * (w[nstart + j].x[2] + w[nstart + j + 1].x[2]);
 
   /* Add something plausible for the edges */
-  one_dom->wind_midx[one_dom->ndim - 1] =
-    2. * one_dom->wind_x[nstart + ndim - 1] - one_dom->wind_midx[nstart +
-								 ndim - 2];
-  one_dom->wind_midz[one_dom->mdim - 1] =
-    2. * one_dom->wind_z[nstart + mdim - 1] - one_dom->wind_midz[nstart +
-								 mdim - 2];
+  one_dom->wind_midx[one_dom->ndim - 1] = 2. * one_dom->wind_x[nstart + ndim - 1] - one_dom->wind_midx[nstart + ndim - 2];
+  one_dom->wind_midz[one_dom->mdim - 1] = 2. * one_dom->wind_z[nstart + mdim - 1] - one_dom->wind_midz[nstart + mdim - 2];
 
   return (0);
 }
 
 
 
+#define RESOLUTION   1000
 
 /**********************************************************/
-/** 
+/**
  * @brief      Calculates the wind volume for cells in a cylindrical domain
  * 	allowing for the fact that some cells are not necessarily entirely in
  * 	the wind
  *
- * @param [in, out] int  ndom   The domain of interest
- * @param [in, out] WindPtr  w   the entire wind
+ * @param [in] ndom   The domain of interest
+ * @param [in,out] w   the entire wind
  * @return     Always returns 0
  *
  * @details
- * This is a brute-froce integration of the volume 
- * 
- * 	ksl--04aug--some of the machinations regarding what to to at the 
+ * This is a brute-froce integration of the volume
+ *
+ * 	ksl--04aug--some of the machinations regarding what to to at the
  * 	edge of the wind seem bizarre, like a substiture for figuring out
  * 	what one actually should be doing.  However, volume > 0 is used
  * 	for making certain choices in the existing code, and so one does
@@ -361,11 +335,9 @@ cylind_wind_complete (ndom, w)
  *
  **********************************************************/
 
-#define RESOLUTION   1000
-
 int
 cylind_volumes (ndom, w)
-     int ndom;			// domain number
+     int ndom;                  // domain number
      WindPtr w;
 {
   int i, j, n;
@@ -383,106 +355,102 @@ cylind_volumes (ndom, w)
 
 
   for (i = 0; i < one_dom->ndim; i++)
+  {
+    for (j = 0; j < one_dom->mdim; j++)
     {
-      for (j = 0; j < one_dom->mdim; j++)
-	{
 
-	  wind_ij_to_n (ndom, i, j, &n);
+      wind_ij_to_n (ndom, i, j, &n);
 
-	  rmin = one_dom->wind_x[i];
-	  rmax = one_dom->wind_x[i + 1];
-	  zmin = one_dom->wind_z[j];
-	  zmax = one_dom->wind_z[j + 1];
+      rmin = one_dom->wind_x[i];
+      rmax = one_dom->wind_x[i + 1];
+      zmin = one_dom->wind_z[j];
+      zmax = one_dom->wind_z[j + 1];
 
-	  /* this is the full cell volume, which is adjusted by the fraction
-	     of the cell that is in the wind later if necessary */
-	  //leading factor of 2 added to allow for volume above and below plane (SSMay04)
-	  cell_volume = 2 * PI * (rmax * rmax - rmin * rmin) * (zmax - zmin);
+      /* this is the full cell volume, which is adjusted by the fraction
+         of the cell that is in the wind later if necessary */
+      //leading factor of 2 added to allow for volume above and below plane (SSMay04)
+      cell_volume = 2 * PI * (rmax * rmax - rmin * rmin) * (zmax - zmin);
 
-	  // XXX Why is it necessary to do the check indicated by the if statement.   
-	  /* JM 1711 -- only try to assign the cell if it has not already been assigned */
-	  if (w[n].inwind == W_NOT_ASSIGNED)
-	    {
-	      if (one_dom->wind_type == IMPORT)
-		{
-		  Error
-		    ("Shouldn't be redefining inwind in cylind_volumes with imported model.\n");
-		  exit (0);
-		}
+      if (w[n].inwind == W_NOT_ASSIGNED)
+      {
+        if (one_dom->wind_type == IMPORT)
+        {
+          Error ("cylind_volumes: Shouldn't be redefining inwind in cylind_volumes with imported model.\n");
+          Exit (0);
+        }
 
-	      n_inwind = cylind_is_cell_in_wind (n);
+        n_inwind = cylind_is_cell_in_wind (n);
 
-	      if (n_inwind == W_NOT_INWIND)
-		{
-		  fraction = 0.0;
-		  jj = 0;
-		  kk = RESOLUTION * RESOLUTION;
-		}
-	      else if (n_inwind == W_ALL_INWIND)
-		{
-		  fraction = 1.0;
-		  jj = kk = RESOLUTION * RESOLUTION;
-		}
-	      else
-		{		/* Determine whether the grid cell is in the wind */
-		  num = denom = 0;
-		  jj = kk = 0;
-		  dr = (rmax - rmin) / RESOLUTION;
-		  dz = (zmax - zmin) / RESOLUTION;
-		  for (r = rmin + dr / 2; r < rmax; r += dr)
-		    {
-		      for (z = zmin + dz / 2; z < zmax; z += dz)
-			{
-			  denom += r * r;
-			  kk++;
-			  x[0] = r;
-			  x[1] = 0;
-			  x[2] = z;
+        if (n_inwind == W_NOT_INWIND)
+        {
+          fraction = 0.0;
+          jj = 0;
+          kk = RESOLUTION * RESOLUTION;
+        }
+        else if (n_inwind == W_ALL_INWIND)
+        {
+          fraction = 1.0;
+          jj = kk = RESOLUTION * RESOLUTION;
+        }
+        else
+        {                       /* Determine whether the grid cell is in the wind */
+          num = denom = 0;
+          jj = kk = 0;
+          dr = (rmax - rmin) / RESOLUTION;
+          dz = (zmax - zmin) / RESOLUTION;
+          for (r = rmin + dr / 2; r < rmax; r += dr)
+          {
+            for (z = zmin + dz / 2; z < zmax; z += dz)
+            {
+              denom += r * r;
+              kk++;
+              x[0] = r;
+              x[1] = 0;
+              x[2] = z;
 
-			  if (where_in_wind (x, &ndomain) == W_ALL_INWIND
-			      && ndom == ndomain)
-			    {
-			      num += r * r;	/* 0 implies in wind */
-			      jj++;
-			    }
-			}
-		    }
-		  fraction = num / denom;
-		}
+              if (where_in_wind (x, &ndomain) == W_ALL_INWIND && ndom == ndomain)
+              {
+                num += r * r;   /* 0 implies in wind */
+                jj++;
+              }
+            }
+          }
+          fraction = num / denom;
+        }
 
-	      /* OK now make the final assignement of nwind and fix the volumes */
-	      /* XXX JM - not clear why these additional if statements are necessary */
-	      if (jj == 0)
-		{
-		  w[n].inwind = W_NOT_INWIND;	// The cell is not in the wind
-		  w[n].vol = 0.0;
-		}
-	      else if (jj == kk)
-		{
-		  w[n].inwind = W_ALL_INWIND;	// All of cell is inwind
-		  w[n].vol = cell_volume;
-		}
-	      else
-		{
-		  w[n].inwind = W_PART_INWIND;	// Some of cell is inwind
-		  w[n].vol = cell_volume * fraction;
-		}
-	    }
+        /* OK now make the final assignement of nwind and fix the volumes */
+        /* XXX JM - not clear why these additional if statements are necessary */
+        if (jj == 0)
+        {
+          w[n].inwind = W_NOT_INWIND;   // The cell is not in the wind
+          w[n].vol = 0.0;
+        }
+        else if (jj == kk)
+        {
+          w[n].inwind = W_ALL_INWIND;   // All of cell is inwind
+          w[n].vol = cell_volume;
+        }
+        else
+        {
+          w[n].inwind = W_PART_INWIND;  // Some of cell is inwind
+          w[n].vol = cell_volume * fraction;
+        }
+      }
 
-	  /* JM 1711 -- the following two if statements are for if the inwind values are
-	     already assigned, for example by an imported model */
-	  /* need to zero volumes for cells not in the wind */
-	  else if (w[n].inwind == W_NOT_INWIND)
-	    {
-	      w[n].vol = 0.0;
-	    }
+      /* JM 1711 -- the following two if statements are for if the inwind values are
+         already assigned, for example by an imported model */
+      /* need to zero volumes for cells not in the wind */
+      else if (w[n].inwind == W_NOT_INWIND)
+      {
+        w[n].vol = 0.0;
+      }
 
-	  else if (w[n].inwind == W_ALL_INWIND)
-	    {
-	      w[n].vol = cell_volume;
-	    }
-	}
+      else if (w[n].inwind == W_ALL_INWIND)
+      {
+        w[n].vol = cell_volume;
+      }
     }
+  }
 
   return (0);
 }
@@ -490,27 +458,25 @@ cylind_volumes (ndom, w)
 
 
 /**********************************************************/
-/** 
+/**
  * @brief      locates the grid position of the vector,
  * 	when one is using cylindrical coordinates.
  *
- * @param [in] int  ndom   The domain number
- * @param [in, out] double  x[]   A postion
+ * @param [in] ndom   The domain number
+ * @param [in] x[]   A position
  * @return     the element number in wmain associated with
- *  a position.  If the position is in the grid this will be a positive
- *  integer 
+ * a position.  If the position is in the grid this will be a positive
+ * integer
  *
- *  if the number is -1 then the position is inside (has rho less than
- *  rhomin) the grid.  If -2, then it is outside the grid.
+ * if the number is -1 then the position is inside (has rho less than
+ * rhomin) the grid.  If -2, then it is outside the grid.
  *
  * @details
- * ??? DESCRIPTION ???
  *
  * ### Notes ###
  *
- *  The routine does not tell you whether the x is in the wind or not,
- *  just that it is in the region covered by the grid. 
- * 
+ * The routine does not tell you whether the x is in the wind or not,
+ * just that it is in the region covered by the grid.
  *
  **********************************************************/
 
@@ -527,18 +493,17 @@ cylind_where_in_grid (ndom, x)
 
   one_dom = &zdom[ndom];
 
-  z = fabs (x[2]);		/* This is necessary to get correct answer above
-				   and below plane */
+  z = fabs (x[2]);              /* This is necessary to get correct answer above
+                                   and below plane */
   if (z == 0)
-    z = 1.e4;			//Force z to be positive  02feb ksl
-  rho = sqrt (x[0] * x[0] + x[1] * x[1]);	/* This is distance from z
-						   axis */
+    z = 1.e4;                   //Force z to be positive  02feb ksl
+  rho = sqrt (x[0] * x[0] + x[1] * x[1]);       /* This is distance from z
+                                                   axis */
   /* Check to see if x is outside the region of the calculation */
-  if (rho > one_dom->wind_x[one_dom->ndim - 1]
-      || z > one_dom->wind_z[one_dom->mdim - 1])
-    {
-      return (-2);		/* x is outside grid */
-    }
+  if (rho > one_dom->wind_x[one_dom->ndim - 1] || z > one_dom->wind_z[one_dom->mdim - 1])
+  {
+    return (-2);                /* x is outside grid */
+  }
 
   if (rho < one_dom->wind_x[0])
     return (-1);
@@ -558,17 +523,17 @@ cylind_where_in_grid (ndom, x)
 
 
 /**********************************************************/
-/** 
+/**
  * @brief      Generate a position at a random location within a specific
  * cell of a domain with cylindrical coordinates
  *
  * @param [in] int  n  Cell in wmain in which random position is to be generated
- * @param [out] double  x[] The random postion generated by the routine
- * @return     double x -- the position
+ * @param [out] double  x[] The random position generated by the routine
+ * @return     A status flag indicating whether the position is or is not in the wind.
  *
  * @details
  * The routine generates a position somewhere in the (wind portion of the) volumme defined
- * by a cell.  
+ * by a cell.
  *
  * ### Notes ###
  *
@@ -587,8 +552,8 @@ cylind_where_in_grid (ndom, x)
 
 int
 cylind_get_random_location (n, x)
-     int n;			
-     double x[];		
+     int n;
+     double x[];
 {
   int i, j;
   int inwind;
@@ -614,23 +579,23 @@ cylind_get_random_location (n, x)
   inwind = W_NOT_INWIND;
   while (inwind != W_ALL_INWIND || ndomain != ndom)
   {
-    r = sqrt (rmin * rmin + random_number(0.0,1.0) * (rmax * rmax - rmin * rmin));
+    r = sqrt (rmin * rmin + random_number (0.0, 1.0) * (rmax * rmax - rmin * rmin));
 
 /* Generate the azimuthal location */
-    phi = 2. * PI * random_number(0.0,1.0);
+    phi = 2. * PI * random_number (0.0, 1.0);
     x[0] = r * cos (phi);
     x[1] = r * sin (phi);
 
 
 
-    x[2] = zmin + (zmax - zmin) * random_number(0.0,1.0);
+    x[2] = zmin + (zmax - zmin) * random_number (0.0, 1.0);
     inwind = where_in_wind (x, &ndomain);       /* Some photons will not be in the wind
                                                    because the boundaries of the wind split the grid cell */
   }
 
-  zz = random_number(-0.5,0.5); //positions above are all at +z distances
+  zz = random_number (-0.5, 0.5);       //positions above are all at +z distances
   if (zz < 0)
-    x[2] *= -1;			/* The photon is in the bottom half of the wind */
+    x[2] *= -1;                 /* The photon is in the bottom half of the wind */
 
   return (inwind);
 }
@@ -639,7 +604,7 @@ cylind_get_random_location (n, x)
 
 
 /**********************************************************/
-/** 
+/**
  * @brief      extends the density to
  * 	regions just outside the wind regiions so that
  * 	extrapolations of density can be made there
@@ -649,9 +614,9 @@ cylind_get_random_location (n, x)
  * @return     Always returns 0
  *
  * @details
- * 
+ *
  * Densities and other parameters for wind cells are actually
- * in the PlasmaPtrs and elements wmain with any valid wind region 
+ * in the PlasmaPtrs and elements wmain with any valid wind region
  * have an associated element in the Plasma structure, which
  * contains denisties, etc, for that cell.  For the purpose
  * of extapolating quantities, like density to the very edge
@@ -666,15 +631,16 @@ cylind_get_random_location (n, x)
  * in the plasma pointer so that it is continuous within the wind.
  * In practive, the main thing that is interpolated are densities
  * of ions.
- * 
+ *
  * Comment: One must be careful never to do anything to the values
  * in the Plasma element as a reult of anything happening outside
- * the wind. 
+ * the wind.
  *
  **********************************************************/
 
 int
 cylind_extend_density (ndom, w)
+     int ndom;
      WindPtr w;
 {
 
@@ -686,36 +652,36 @@ cylind_extend_density (ndom, w)
 
 
   for (i = 0; i < ndim - 1; i++)
+  {
+    for (j = 0; j < mdim - 1; j++)
     {
-      for (j = 0; j < mdim - 1; j++)
-	{
-	  wind_ij_to_n (ndom, i, j, &n);
-	  if (w[n].vol == 0)
+      wind_ij_to_n (ndom, i, j, &n);
+      if (w[n].vol == 0)
 
-	    {/*Then this grid point is not in the wind  */
+      {                         /*Then this grid point is not in the wind  */
 
-	      wind_ij_to_n (ndom, i + 1, j, &m);
-	      if (w[m].vol > 0)
-		{		/*Then the windcell in the +x direction is in the wind and
-		  we associate that plasma element with this grid cell
-          */
-		  w[n].nplasma = w[m].nplasma;
+        wind_ij_to_n (ndom, i + 1, j, &m);
+        if (w[m].vol > 0)
+        {                       /*Then the windcell in the +x direction is in the wind and
+                                   we associate that plasma element with this grid cell
+                                 */
+          w[n].nplasma = w[m].nplasma;
 
-		}
-	      else if (i > 0)
-		{
-		  wind_ij_to_n (ndom, i - 1, j, &m);
-		  if (w[m].vol > 0)
-		    {		/*Then the grid cell in the -x direction is in the wind and
-		      we associate that plasma element with this grid cell
-              */
-		      w[n].nplasma = w[m].nplasma;
+        }
+        else if (i > 0)
+        {
+          wind_ij_to_n (ndom, i - 1, j, &m);
+          if (w[m].vol > 0)
+          {                     /*Then the grid cell in the -x direction is in the wind and
+                                   we associate that plasma element with this grid cell
+                                 */
+            w[n].nplasma = w[m].nplasma;
 
-		    }
-		}
-	    }
-	}
+          }
+        }
+      }
     }
+  }
 
   return (0);
 
@@ -735,13 +701,13 @@ History:
   15sep ksl	Modified to ask the more refined question of
   		whether this cell is in the wind of the
 		specific domain assigned to the cell.
-	
+
 
 */
 
 
 /**********************************************************/
-/** 
+/**
  * @brief      Check whether this cell is in the wind or not
  *
  * @param [in] int  n   The number of an element in the wind structure
@@ -749,28 +715,28 @@ History:
  * W_NOT_INWIND, W_PART_INWIND, etc.
  *
  * @details
- * 
+ *
  * This routine performs is a robust check of whether a cell is in the wind or not,
- * by looking at the four corners of the cell as defined in wmain.  
+ * by looking at the four corners of the cell as defined in wmain.
  * It was created to speed up the evaluation of the volumes for the wind.  It
  * checks each of the four boundaries of the wind to see whether any portions
  * of these are in the wind
  *
  * ### Notes ###
- * 
- * This rooutine gets the domain number from wmain[n].ndom, and uses the 
- * wind_x and wind_y postions to get the coreners, and then 
+ *
+ * This rooutine gets the domain number from wmain[n].ndom, and uses the
+ * wind_x and wind_y postions to get the coreners, and then
  * calls where in wind multiple times.
- * 
+ *
  * Comment: As with the case of a number of other routines the logic
- * of this is quite convoluted, reflecting the fact that much 
+ * of this is quite convoluted, reflecting the fact that much
  * of the code was written prior to the introduction of domains
  *
  **********************************************************/
 
 int
 cylind_is_cell_in_wind (n)
-     int n;			// cell number
+     int n;                     // cell number
 {
   int i, j;
   double r, z, dr, dz;
@@ -784,22 +750,22 @@ cylind_is_cell_in_wind (n)
   wind_n_to_ij (ndom, n, &i, &j);
 
   /* First check if the cell is in the boundary */
-  if (i >= (one_dom->ndim - 2) && j >= (one_dom->mdim - 2))
-    {
-      return (W_NOT_INWIND);
-    }
+  if (i >= (one_dom->ndim - 2) || j >= (one_dom->mdim - 2))
+  {
+    return (W_NOT_INWIND);
+  }
 
   /* Assume that if all four corners are in the wind that the
-     entire cell is in the wind.  check_corners also now checks 
+     entire cell is in the wind.  check_corners also now checks
      that the corners are in the wind of a specific domain */
 
   if (check_corners_inwind (n) == 4)
-    {
-      return (W_ALL_INWIND);
-    }
+  {
+    return (W_ALL_INWIND);
+  }
 
-  /* So at this point, we have dealt with the easy cases 
-     of being in the region of the wind which is used for the 
+  /* So at this point, we have dealt with the easy cases
+     of being in the region of the wind which is used for the
      boundary and when all the edges of the cell are in the wind.
    */
 
@@ -817,46 +783,46 @@ cylind_is_cell_in_wind (n)
   x[1] = 0;
 
   for (z = zmin + dz / 2; z < zmax; z += dz)
+  {
+    x[2] = z;
+
+    x[0] = rmin;
+
+    if (where_in_wind (x, &ndomain) == W_ALL_INWIND && ndom == ndomain)
     {
-      x[2] = z;
-
-      x[0] = rmin;
-
-      if (where_in_wind (x, &ndomain) == W_ALL_INWIND && ndom == ndomain)
-	{
-	  return (W_PART_INWIND);
-	}
-
-      x[0] = rmax;
-
-      if (where_in_wind (x, &ndomain) == W_ALL_INWIND && ndom == ndomain)
-	{
-	  return (W_PART_INWIND);
-	}
+      return (W_PART_INWIND);
     }
+
+    x[0] = rmax;
+
+    if (where_in_wind (x, &ndomain) == W_ALL_INWIND && ndom == ndomain)
+    {
+      return (W_PART_INWIND);
+    }
+  }
 
 
   /* Check inner and outer boundary in the z direction */
 
   for (r = rmin + dr / 2; r < rmax; r += dr)
+  {
+
+    x[0] = r;
+
+    x[2] = zmin;
+
+    if (where_in_wind (x, &ndomain) == W_ALL_INWIND && ndom == ndomain)
     {
-
-      x[0] = r;
-
-      x[2] = zmin;
-
-      if (where_in_wind (x, &ndomain) == W_ALL_INWIND && ndom == ndomain)
-	{
-	  return (W_PART_INWIND);
-	}
-
-      x[2] = zmax;
-
-      if (where_in_wind (x, &ndomain) == W_ALL_INWIND && ndom == ndomain)
-	{
-	  return (W_PART_INWIND);
-	}
+      return (W_PART_INWIND);
     }
+
+    x[2] = zmax;
+
+    if (where_in_wind (x, &ndomain) == W_ALL_INWIND && ndom == ndomain)
+    {
+      return (W_PART_INWIND);
+    }
+  }
 
   /* If one has reached this point, then this wind cell is not in the wind */
   return (W_NOT_INWIND);

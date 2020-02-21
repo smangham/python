@@ -1,6 +1,10 @@
 # This is the git ignore for python
 # ignore binaries in bin/ such as e.g. py78a
 bin/py*
+bin/windsave2table*
+
+# Run files
+*.spec*
 
 # Object files
 *.o
@@ -33,11 +37,33 @@ bin/py*
 *.hex
 
 
-# things from gsl, may not be necessary 
-software/gsl-1.15/Makefile
-software/gsl-1.15/*/Makefile
-software/gsl-1.15/*.dSYM
-software/gsl-1.15/*/*.dSYM
+# things from gsl, may not be necessary
+software/gsl-2.5/Makefile
+software/gsl-2.5/*/Makefile
+software/gsl-2.5/*.dSYM
+software/gsl-2.5/*/*.dSYM
+software/gsl-2.5/bin/
+software/gsl-2.5/share/
+include/gsl/
+lib/pkgconfig/
+
+# the configure Makefile should not be tracked
+./Makefile
+
+# sphinx stuff
+docs/sphinx/html/
+docs/sphinx/doctrees/
+
+# doxygen stuff
+docs/doxygen/html/
+docs/doxygen/latex/
+
+# For if you're running py_progs in a virtual environment
+py_progs/venv/
+py_progs/*.html
+
+# For when the wiki is cloned locally
+wiki/
 
 # python and system files
 *.pyc
@@ -48,5 +74,23 @@ software/gsl-1.15/*/*.dSYM
 *.Plo
 *.Po
 
-# atomic data files should not be tracked by this repository 
+# atomic data files should not be tracked by this repository
 data/
+
+# we shouldn't be tracking version.h either 
+source/version.h
+
+# python output files
+*.diag
+*.spec
+*.log_spec
+*.spec_tot
+*.log_spec_tot
+*.rdpar
+*.sig
+*.out.pf
+logfile
+
+# IDE files
+.idea/
+py_progs/.idea/

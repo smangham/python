@@ -1,0 +1,10 @@
+name: KWD.rmax
+description: |
+  The radius at which the disk wind terminates, in units of central object
+  radii. This has to be greater than rmin.
+type: Double
+unit: :ref:`Central_object.radius`
+values: Greater than :ref:`KWD.rmin`
+parent:
+  Wind.type: kwd
+file: knigge.c

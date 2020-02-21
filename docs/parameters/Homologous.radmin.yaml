@@ -1,0 +1,10 @@
+name: Homologous.radmin
+description: |
+  The starting point of for madel of a homologous flow, a model in
+  which the velocity at any radius is proportional to the radius
+type: Double
+unit: cm
+values: Greater than or equal to :ref:`Central_object.radius`
+parent:
+  Wind.type: homologous
+file: homologous.c

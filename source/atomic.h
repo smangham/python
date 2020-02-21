@@ -4,12 +4,12 @@
 #define TRUE		1
 #define FALSE		0
 
-#define H   				6.6262e-27
+#define PLANCK   				6.6262e-27
 #define HC  				1.98587e-16
 #define HEV				4.13620e-15     /* Planck's constant in eV */
 #define HRYD				3.04005e-16     /* NSH 1204 Planck's constant in Rydberg */
-#define C   				2.997925e10
-#define G				6.670e-8
+#define VLIGHT   				2.997925e10
+#define GRAV				6.670e-8
 #define BOLTZMANN 			1.38062e-16
 #define WIEN				5.879e10        /* NSH 1208 Wien Disp Const in frequency units */
 #define H_OVER_K			4.799437e-11
@@ -17,7 +17,7 @@
 #define THOMPSON			0.66524e-24
 #define PI  				3.1415927
 #define MELEC 				9.10956e-28
-#define E				4.8035e-10      /* Electric charge in esu */
+#define ECHARGE				4.8035e-10      /* Electric charge in esu */
 #define MPROT 				1.672661e-24
 #define MSOL 				1.989e33
 #define PC				3.08e18
@@ -57,7 +57,7 @@ int nelements;                  /* The actual number of ions read from the data 
 int nions;                      /*The actual number of ions read from the datafile */
 #define NLEVELS 	12000   /* Maximum number of levels for all elements and ions */
 int nlevels;                    /*These are the actual number of levels which were read in */
-#define NLTE_LEVELS	12000    /* Maximum number of levels to treat explicitly */
+#define NLTE_LEVELS	12000   /* Maximum number of levels to treat explicitly */
 int nlte_levels;                /* Actual number of levels to treat explicityly */
 #define NLEVELS_MACRO   200     /* Maximum number of macro atom levels. (SS, June 04) */
 int nlevels_macro;              /* Actual number of macro atom levels. (SS, June 04) */
@@ -85,9 +85,10 @@ typedef struct elements
                                    provides and index to the atomic data */
   char name[20];                /* Element name */
   int z;                        /* Atomic number */
-  int firstion;                 /*Index into struct ions  ion[firstion] is the lowest ionization state of this ion */
-  int nions;                    /*The number of ions actually read in from the data file for this element */
-  double abun;                  /*Abundance */
+  int firstion;                 /* Index into struct ions  ion[firstion] is the lowest ionization state of this ion */
+  int nions;                    /* The number of ions actually read in from the data file for this element */
+  double abun;                  /* Abundance */
+  int istate_max;               /* highest ionization stage of element */
 }
 ele_dummy, *ElemPtr;
 
@@ -103,7 +104,8 @@ double rho2nh;                  /* The conversion constant from rho to nh the to
 typedef struct ions
 {
   int z;                        /* defines the element for this ion */
-  int istate;                   /*1=neutral, 2 = once ionized, etc. */
+  int istate;                   /* 1=neutral, 2 = once ionized, etc. */
+  int nelem;                    /* index to elements structure */
   double ip;                    /* ionization potential of this ion (converted from eV to ergs by get_atomic) */
   double g;                     /* multiplicity of ground state, note that this is not totally consistent
                                    with energy levels and this needs to be reconciled */
@@ -261,7 +263,7 @@ int nline_min, nline_max, nline_delt;   /* Used to select a range of lines in a 
                                            lines come into play for resonant scattering along a line of sight, and in
                                            calculating band_limit luminosities.  The limits are established by the
                                            routine limit_lines.
-                                           */
+                                         */
 
 
         /* coll_stren is the collision strength interpolation data extracted from Chianti */
@@ -286,32 +288,6 @@ typedef struct coll_stren
 } Coll_stren, *Coll_strenptr;
 
 Coll_stren coll_stren[NLINES];  //Set up the structure - we could in principle have as many of these as we have lines
-
-/*structure containing photoionization data */
-
-// /* Photoionization crossections from Verner, Ferland, Korista & Yakovlev */
-// typedef struct photoionization
-// {
-//   int nion;                  /* index to the appropriate ion in the structure ions, so for example, ion would
-//                                 normally be 0 for neutral H, 1 for H+, 1 for He, 2 for He+ etc */
-//   int z, istate;
-//   double freq_t;             /*frequency of threshold derived from ionization potential */
-//   double freq_max;           /* maximum frequency for which fit formula apllies */
-//   double freq0;                      /* fit parameter */
-//   double sigma;                      /*cross section at freq0 */
-//   double ya, p, yw, y0, y1;  /* Fit prarameters */
-//   double f_last, sigma_last; /*last freq, last x-section */
-
-// } Photoionization, *PhotoionizationPtr;
-
-// Photoionization xphot[NIONS];
-// PhotoionizationPtr xphot_ptr[NIONS]; /* Pointers to xphot in threshold frequency order --57h -- ksl */
-// PhotoionizationPtr xphot_ptr1[NIONS];        /* Pointers to xphot in ion order --57h -- ksl */
-
-
-
-
-
 
 
 
@@ -340,7 +316,7 @@ typedef struct topbase_phot
                                    for the correct array elements, or whether this process
                                    can be short circuited */
   int n_elec_yield;             /*Index to the electron yield array - only used for inner shell ionizations */
-  int n_fluor_yield;            /*Inder to the fluorescent photon yield array - only used for inner shell ionizations */
+//  int n_fluor_yield;            /*Inder to the fluorescent photon yield array - only used for inner shell ionizations */
   int macro_info;               /* Identifies whether line is to be treated using a Macro Atom approach.
                                    set to -1 initially
                                    set to 0 if not a macro atom line  
@@ -430,45 +406,6 @@ struct ground_fracs
                                    fractions must have been computed elsewhere */
 }
 ground_frac[NIONS];
-
-
-/* Data needed for collisionally excited lines in a thin plasma.   The
-   data is taken in atomic.dat from Gaetz and Salpeter.  Note that .tm
-   is converted to degrees (from log degrees) in atomic.c */
-
-#define NTRANS 200
-int nxcol;                      /*number of transition for collisional excitation */
-struct collision_strength
-{
-  int nion;                     /*The index into the ion array */
-  int z, istate;
-  double freq;                  /* frequency of the line */
-  double ex;                    /* excitation energy of line (converted from eV 2 ergs in get_atomic) */
-  double alpha;
-  double beta;
-  double tm;                    /* Temp max, expanded from log in get_atomic */
-  double pow;                   /*power associated with this line */
-}
-xcol[NTRANS], *xcol_ptr[NTRANS];        /* xcol[] is the actual structure array that contains all the data, *xcol_ptr
-                                           is an array which contains a frequency ordered set of ptrs to line */
-
-int nxcol_min, nxcol_max, nxcol_delt;   /*For calculating a frequency range within which collisions should
-                                           be included, see the routine limit_collisions */
-
-
-//091103 ksl deleted coolstruct as not really necessary and in order to reduce the overall size of the MacroPtr array
-// This structure has been put in the overall MacroPtr as individual elements so that icould get it there
-//OLD 091103 struct coolstruct
-//OLD 091103 {
-//OLD 091103   double cooling_bf[NTOP_PHOT];
-//OLD 091103   double cooling_bf_col[NTOP_PHOT];        
-//OLD 091103   double cooling_bb[NLINES];
-//OLD 091103   double cooling_normalisation;
-//OLD 091103   double cooling_bbtot, cooling_bftot, cooling_bf_coltot;
-//OLD 091103   double cooling_ff;
-//OLD 091103 };
-
-//OLD 140720 typedef struct coolstruct COOLSTR;
 
 
 //081115 nsh New structure and variables to hold the dielectronic recombination rate data

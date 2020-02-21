@@ -1,8 +1,6 @@
 
-
-
 /***********************************************************/
-/** @file  recipes.c 
+/** @file  recipes.c
  * @author ksl
  * @date   May, 2018
  *
@@ -14,315 +12,31 @@
  *
  ***********************************************************/
 
-
-
 #include <stdio.h>
 #include <stdlib.h>
-#include "atomic.h"
+#include <stdarg.h>
 #include <math.h>
+#include <time.h>
+#include <gsl/gsl_integration.h>
+#include <gsl/gsl_errno.h>
+#include <gsl/gsl_math.h>
+#include <gsl/gsl_roots.h>
+#include <gsl/gsl_min.h>
+#include <gsl/gsl_errno.h>
+
+#include "atomic.h"
+#include "python.h"
 #include "recipes.h"
 #include "log.h"
 
 
-
-#define EPS 1.0e-6
-#define JMAX 100
-#define JMAXP JMAX+1
-#define K 5
-
-
-/**********************************************************/
-/**                 
- * @brief      Integrate a function between a and b 
- *
- *
- * @param [in] func  The function which one wishes a root for
- * @param [in] a  one end of the interval
- * @param [in] b  the other end of the interval
- * @param [in] eps   A tolerence
- * @return   The root of the function f                           .
- *
- * @details
- * A Numerical Recipes routine to integrates the double precision function func from a to b.
- *
- * ### Notes ###
- * JMAX limits the total number number of times the
- * trapezoidal rule can be called, and K determines the order of polint 
- *
- * 
- * This routine has been modified from that that appears
- * in Numberical recipes so that the tolerance could be specified.
- * Additioanlly, the convergence criterion for exiting the 
- * exiting trapzd loop
- * to include = sign.  This change was in the ansi version
- * of qromb routine, and was needed to integrate functions
- * which were in some cases zero throughout the range. Not
- * only did this seem to eliminate a number of error 
- * returns, it sped up some portions of the program.	
- *
- *
- **********************************************************/
-
-
-double
-qromb (func, a, b, eps)
-     double a, b;
-     double (*func) (double);
-     double eps;
-{
-  double ss, dss, trapzd ();
-  double s[JMAXP + 1], h[JMAXP + 1];
-  int j;
-  void polint ();
-
-  ss = 0.0;
-  if (a >= b)
-    {
-      Error ("Error qromb: a %e>=b %e\n", a, b);
-    }
-
-  h[1] = 1.0;
-  for (j = 1; j <= JMAX; j++)
-    {
-      s[j] = trapzd (func, a, b, j);
-      if (j >= K)
-	{
-	  polint (&h[j - K], &s[j - K], K, 0.0, &ss, &dss);
-	  // ksl --56g --05Oct -- Changed to include = sign
-	  if (fabs (dss) <= eps * fabs (ss))
-	    {
-	      recipes_error = 0;
-	      return ss;
-	    }
-	}
-      s[j + 1] = s[j];
-      h[j + 1] = 0.25 * h[j];
-    }
-  Error ("Too many steps in routine QROMB\n");
-  recipes_error = -1;
-  return ss;			/* I set this to the best value but the user should beware */
-}
-
-#undef EPS
-#undef JMAX
-#undef JMAXP
-#undef K
-
-#define FUNC(x) ((*func)(x))
-
-double
-trapzd (func, a, b, n)
-     double a, b;
-     double (*func) (double);	/* ANSI: double (*func)(double); */
-     int n;
-{
-  double x, tnm, sum, del;
-  static double s;
-  static int it;
-  double ssss;
-  int j;
-
-  if (n == 1)
-    {
-      it = 1;
-      return (s = 0.5 * (b - a) * (FUNC (a) + FUNC (b)));
-    }
-  else
-    {
-      tnm = it;
-      del = (b - a) / tnm;
-      x = a + 0.5 * del;
-      for (sum = 0.0, j = 1; j <= it; j++, x += del)
-	sum += ssss = FUNC (x);
-      it *= 2;
-      s = 0.5 * (s + (b - a) * sum / tnm);
-      return s;
-    }
-}
-
-
-/******************************************* 
- * Given arrays xa[] and y[a] defined from elements 1 to n and
-   given x, polint returns a value y and an error estimate dy.  If
-   P(x) is an polynomial of degree n-1, the results will be exact. Note
-   that polint will return a value outside the specified range without 
-   bothering to warn you 
-**************************************************/
-
-void
-polint (xa, ya, n, x, y, dy)
-     double xa[], ya[], x, *y, *dy;
-     int n;
-{
-  int i, m, ns = 1;
-  double den, dif, dift, ho, hp, w;
-  double *c, *d, *vector ();
-  void free_vector ();
-
-
-  dif = fabs (x - xa[1]);
-  c = vector (1, n);
-  d = vector (1, n);
-  for (i = 1; i <= n; i++)
-    {
-      if ((dift = fabs (x - xa[i])) < dif)
-	{
-	  ns = i;
-	  dif = dift;
-	}
-      c[i] = ya[i];
-      d[i] = ya[i];
-    }
-  *y = ya[ns--];
-  for (m = 1; m < n; m++)
-    {
-      for (i = 1; i <= n - m; i++)
-	{
-	  ho = xa[i] - x;
-	  hp = xa[i + m] - x;
-	  w = c[i + 1] - d[i];
-	  if ((den = ho - hp) == 0.0)
-	    Error ("Error in routine POLINT\n");
-	  den = w / den;
-	  d[i] = hp * den;
-	  c[i] = ho * den;
-	}
-      *y += (*dy = (2 * ns < (n - m) ? c[ns + 1] : d[ns--]));
-    }
-  free_vector (d, 1, n);
-  free_vector (c, 1, n);
-}
-
-
-
-/**********************************************************/
-/**                
- * @brief      A routine that finds the rooot of  a function f 
- *
- *
- * @param [in] *funcd  The function which one wishes a root for
- * @param [in] x1  one end of the interval
- * @param [in] x2  the other end of the interval
- * @param [in] tol   A tolerence for the root 
- * @return   The root of the function f                           .
- *
- * @details
- * A Numerical Recipes routine to find the root of a function known to
- * be between x1 and x2
- *
- * ### Notes ###
- *
- **********************************************************/
-
-
-#define ITMAX 100
-#define EPS 3.0e-8
-
-double
-zbrent (func, x1, x2, tol)
-     double x1, x2, tol;
-     double (*func) (double);	/* ANSI: double (*func)(double); */
-{
-  int iter;
-  double a = x1, b = x2, c, d, e, min1, min2;
-  double fa = (*func) (a), fb = (*func) (b), fc, p, q, r, s, tol1, xm;
-
-  c = d = e = 0;		// to avoid -03 warning
-
-
-  if (fb * fa > 0.0)
-    {
-      Log ("ZBRENT: Min %e & Max %e must bracket zero, but got %e & %e\n", x1,
-	   x2, fa, fb);
-    }
-  fc = fb;
-  for (iter = 1; iter <= ITMAX; iter++)
-    {
-      if (fb * fc > 0.0)
-	{
-	  c = a;
-	  fc = fa;
-	  e = d = b - a;
-	}
-      if (fabs (fc) < fabs (fb))
-	{
-	  a = b;
-	  b = c;
-	  c = a;
-	  fa = fb;
-	  fb = fc;
-	  fc = fa;
-	}
-      tol1 = 2.0 * EPS * fabs (b) + 0.5 * tol;
-      xm = 0.5 * (c - b);
-      if (fabs (xm) <= tol1 || fb == 0.0)
-	return b;
-      if (fabs (e) >= tol1 && fabs (fa) > fabs (fb))
-	{
-	  s = fb / fa;
-	  if (a == c)
-	    {
-	      p = 2.0 * xm * s;
-	      q = 1.0 - s;
-	    }
-	  else
-	    {
-	      q = fa / fc;
-	      r = fb / fc;
-	      p = s * (2.0 * xm * q * (q - r) - (b - a) * (r - 1.0));
-	      q = (q - 1.0) * (r - 1.0) * (s - 1.0);
-	    }
-	  if (p > 0.0)
-	    q = -q;
-	  p = fabs (p);
-	  min1 = 3.0 * xm * q - fabs (tol1 * q);
-	  min2 = fabs (e * q);
-	  if (2.0 * p < (min1 < min2 ? min1 : min2))
-	    {
-	      e = d;
-	      d = p / q;
-	    }
-	  else
-	    {
-	      d = xm;
-	      e = d;
-	    }
-	}
-      else
-	{
-	  d = xm;
-	  e = d;
-	}
-      a = b;
-      fa = fb;
-      if (fabs (d) > tol1)
-	b += d;
-      else
-	b += (xm > 0.0 ? fabs (tol1) : -fabs (tol1));
-      fb = (*func) (b);
-    }
-  Error ("Maximum number of iterations exceeded in ZBRENT\n");
-  return b;
-}
-
-#undef ITMAX
-#undef EPS
-
-
-
-
-#undef MAXIT
-#undef EPS
-#undef FPMIN
-#undef EULER
-
 /******************************
  * The next two routines were written by ksl.  They were not part of
-   the recipes programs which I had but I think they are what was intended 
+   the recipes programs which I had but I think they are what was intended
 ********************************/
 
-double 
-* vector (i, j)
+double *
+vector (i, j)
      int i, j;
 {
   double dummy, *d;
@@ -340,170 +54,231 @@ free_vector (a, i, j)
 
 
 
-
 /**********************************************************/
-/**                
- * @brief      A routine that mimimizes a function f 
+/**
+ * @brief      A wrapper function that carries out numerical integration on a supplied function between limits
  *
  *
- * @param [in] *funcd
- * @param [in] x1
- * @param [in] x2
- * @param [in] xacc
- * @return   The minimum of the function f                           .
+ * @param [in] func - a function to integrate, needs to be of the form (double (double,void*))
+ * @param [in] a - lower bound
+ * @param [in] b - upper bound
+ * @param [in] eps - the relative accuracy desired.
+ * @return   The integral                          .
  *
  * @details
- * A Numerical Recipes routine to find the zero of an equation.  A function
- * which returns the value of the function and and the derivative at x is required.
- * The root must be bracketed by x1 and x2.
+ * This routine carries out numerical integration of the function func from a to b. It currently
+ * uses the gsl implementation of the ROMBERG integration scheme. Initial tests using QAG showed that
+ * the type of integrals we do - often with exponential tails - is not well treated. There is an 
+ * internal test to ensure that the user isnt asking for an integral where the function is zero everywhere.
+ * The gsl routine doesnt handle this well, and takes ages to (sometimes) return zero.
  *
  * ### Notes ###
  *
  **********************************************************/
 
 
-#include <math.h>
-#define MAXIT 100
-
 double
-rtsafe (void (*funcd) (double, double *, double *), double x1, double x2,
-	double xacc)
+num_int (func, a, b, eps)
+     double (*func) (double, void *);
+     double a, b;
+     double eps;
 {
-  int j;
-  double df, dx, dxold, f, fh, fl;
-  double temp, xh, xl, rts;
+  double result, error, result2;
+  double alpha = 0.0;
+  void *test = NULL;
+  double delta;
+  int zflag, i;
+  int status = 0;
+  int status2 = 0;
 
-  (*funcd) (x1, &fl, &df);
-  (*funcd) (x2, &fh, &df);
-  if ((fl > 0.0 && fh > 0.0) || (fl < 0.0 && fh < 0.0))
+  int npoints;
+  size_t neval;
+  gsl_function F;
+  F.function = func;
+  F.params = &alpha;
+  zflag = 1;
+  npoints = 1000;
+  if (func (a, test) == 0.0 && func (b, test) == 0.0)
+  {
+    zflag = 0;
+    delta = (b - a) / 101;
+    for (i = 0; i < 100; i++)
     {
-      Error ("rtsafe: x1 %8.3e x2 %8.3e fl %8.3e fh %8.3e \n", x1, x2, fl,
-	     fh);
-      Error ("rtsafe: Root must be bracketed in RTSAFE\n");
+      if (func (a + delta * i, test) != 0)
+        zflag = 1;
     }
-  if (fl == 0.0)
-    return x1;
-  if (fh == 0.0)
-    return x2;
-  if (fl < 0.0)
+  }
+  if (zflag == 1)
+  {
+    gsl_set_error_handler_off ();       //We need to be able to catch and handle gsl errors 
+
+    gsl_integration_workspace *w = gsl_integration_workspace_alloc (1000);
+    status = gsl_integration_qags (&F, a, b, 0, eps, 1000, w, &result, &error);
+    if (status)
     {
-      xl = x1;
-      xh = x2;
+      if (status == GSL_EROUND) //The rounding error has been triggered - try a different integrator
+      {
+        gsl_integration_workspace_free (w);
+        gsl_integration_romberg_workspace *w = gsl_integration_romberg_alloc (30);
+        status2 = gsl_integration_romberg (&F, a, b, 0, eps, &result2, &neval, w);
+        gsl_integration_romberg_free (w);
+        if (status2)
+        {
+          Error ("num_init: some kind of error in romberg and qags integration\n");
+        }
+      }
     }
+    else
+    {
+      gsl_integration_workspace_free (w);
+    }
+  }
   else
-    {
-      xh = x1;
-      xl = x2;
-    }
-  rts = 0.5 * (x1 + x2);
-  dxold = fabs (x2 - x1);
-  dx = dxold;
-  (*funcd) (rts, &f, &df);
-  for (j = 1; j <= MAXIT; j++)
-    {
-      if ((((rts - xh) * df - f) * ((rts - xl) * df - f) >= 0.0)
-	  || (fabs (2.0 * f) > fabs (dxold * df)))
-	{
-	  dxold = dx;
-	  dx = 0.5 * (xh - xl);
-	  rts = xl + dx;
-	  if (xl == rts)
-	    return rts;
-	}
-      else
-	{
-	  dxold = dx;
-	  dx = f / df;
-	  temp = rts;
-	  rts -= dx;
-	  if (temp == rts)
-	    return rts;
-	}
-      if (fabs (dx) < xacc)
-	return rts;
-      (*funcd) (rts, &f, &df);
-      if (f < 0.0)
-	xl = rts;
-      else
-	xh = rts;
-    }
-  Error (" Maximum number of iterations exceeded in RTSAFE\n");
-  return 0.0;
+  {
+    result = 0.0;
+  }
+
+  return (result);
 }
 
+/**********************************************************/
+/**
+* @brief      A wrapper function that finds the root of a function between two limits
+*
+*
+* @param [in] func - the function we want to find the root of, needs to be of the form (double (double,void*))
+* @param [in] a - lower bound
+* @param [in] b - upper bound
+* @param [in] eps - the relative accuracy desired.
+* @return   The location between a and b of the zero point                         .
+*
+* @details
+* This routine finds the root  of the function func from a to b. It currently
+* uses the gsl implementation of the BRENT root finding scheme. This replaced the zbrent 
+* numerical recipie, and the call is intended to be indentical
+*
+* ### Notes ###
+*
+**********************************************************/
+
+
+double
+zero_find (func, x_lo, x_hi, tol)
+     double (*func) (double, void *);
+     double x_lo, x_hi;
+     double tol;
+{
+  double result;
+  double alpha = 0.0;
+  double r = 0;
+  const gsl_root_fsolver_type *T;
+  gsl_root_fsolver *s;
+  int iter = 0, max_iter = 100;
+  int status;
+
+
+  gsl_function F;
+  F.function = func;
+  F.params = &alpha;
+
+
+
+  T = gsl_root_fsolver_brent;
+  s = gsl_root_fsolver_alloc (T);
+  gsl_root_fsolver_set (s, &F, x_lo, x_hi);
+
+
+
+  do
+  {
+    iter++;
+    status = gsl_root_fsolver_iterate (s);
+    r = gsl_root_fsolver_root (s);
+    x_lo = gsl_root_fsolver_x_lower (s);
+    x_hi = gsl_root_fsolver_x_upper (s);
+    status = gsl_root_test_interval (x_lo, x_hi, tol, 0);
+
+
+
+  }
+  while (status == GSL_CONTINUE && iter < max_iter);
+
+  result = (x_lo + x_hi) / 2.0;
+
+  return (result);
+}
 
 
 /**********************************************************/
-/**                
- * @brief      A routine that mimimizes a function f 
- *
- *
- * @param [in] ax
- * @param [in] bx
- * @param [in] cx
- * @param [in] f  the function to minimize
- * @param [in] tol A tolerance
- * @param [out] * xmin - The place where the minimum occors
- * @return   The minimum of the function f                           .
- *
- * @details
- * This is a Numerical Recipes routine.  Fiven a funYtion f,
- * and bracketing triplet of abscissas a,b,c, such that it is known
- * that f(b) < f(a) and f(b)<f(c), golden returns the minimum value 
- * of the function, and the value xmin where the minimum occurs 
- *
- * ### Notes ###
- *
- **********************************************************/
+/**
+* @brief      A routine that mimimizes a function f
+*
+*
+* @param [in] ax - lower bound
+* @param [in] bx - guess where the minimum is found
+* @param [in] cx - upper bound
+* @param [in] f  the function to minimize
+* @param [in] tol A tolerance
+* @param [out] * xmin - The place where the minimum occors
+* @return   The minimum of the function f                           .
+*
+* @details
+* This is a wrapper routine which uses gsl calls to find the minimum of a function
+*
+* ### Notes ###
+* added in 2019 to replace the function 'golden' which is a numerical recipie
+* 
+**********************************************************/
 
 
-#undef MAXIT
-
-#define R 0.61803399
-#define CC (1.0-R)
-#define SHFT(a,b,c,d) (a)=(b);(b)=(c);(c)=(d);
 
 double
-golden (ax, bx, cx, f, tol, xmin)
-     double ax, bx, cx, tol, *xmin;
-     double (*f) (double);	/* ANSI: double (*f)(double); */
+func_minimiser (a, m, b, func, tol, xmin)
+     double (*func) (double, void *);
+     double a, m, b;
+     double tol, *xmin;
+
 {
-  double f0, f1, f2, f3, x0, x1, x2, x3;
+  int status = 0;
+  void *test = NULL;
 
-  x0 = ax;
-  x3 = cx;
-  if (fabs (cx - bx) > fabs (bx - ax))
+
+  int iter = 0, max_iter = 100;
+  const gsl_min_fminimizer_type *T;
+  gsl_min_fminimizer *s;
+
+
+  gsl_function F;
+  F.function = func;
+  F.params = 0;
+
+
+
+  T = gsl_min_fminimizer_brent;
+
+  s = gsl_min_fminimizer_alloc (T);
+  gsl_set_error_handler_off ();
+  status = gsl_min_fminimizer_set (s, &F, m, a, b);
+  if (status)
+  {
+    if (status == GSL_EINVAL)   //THere is no minimum 
     {
-      x1 = bx;
-      x2 = bx + CC * (cx - bx);
+      return fmin (func (a, test), func (b, test));     //keep old behaviour
     }
-  else
-    {
-      x2 = bx;
-      x1 = bx - CC * (bx - ax);
-    }
-  f1 = (*f) (x1);
-  f2 = (*f) (x2);
-  while (fabs (x3 - x0) > tol * (fabs (x1) + fabs (x2)))
-    {
-      if (f2 < f1)
-	{
-	SHFT (x0, x1, x2, R * x1 + CC * x3) SHFT (f0, f1, f2, (*f) (x2))}
-      else
-	{
-	SHFT (x3, x2, x1, R * x2 + CC * x0) SHFT (f3, f2, f1, (*f) (x1))}
-    }
-  if (f1 < f2)
-    {
-      *xmin = x1;
-      return f1;
-    }
-  else
-    {
-      *xmin = x2;
-      return f2;
-    }
+  }
+
+
+  do
+  {
+    iter++;
+    status = gsl_min_fminimizer_iterate (s);
+    m = gsl_min_fminimizer_x_minimum (s);
+    a = gsl_min_fminimizer_x_lower (s);
+    b = gsl_min_fminimizer_x_upper (s);
+    status = gsl_min_test_interval (a, b, 0.0, tol);
+  }
+  while (status == GSL_CONTINUE && iter < max_iter);
+  *xmin = m;
+
+  return func (m, test);
 }
-
-#undef CC
-#undef R

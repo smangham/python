@@ -1,10 +1,10 @@
 name: Boundary_layer.temp
 description: |
-  The temperature of the boundary layer in situations where temperature
-  is meaningful in generating the spectrum
+  The temperature of the boundary layer when radiating as a black body.
 type: Double
-unit: Degrees Kelvin
+unit: Kelvin
 values: Greater than 0
 parent:
-  parameter: Condition e.g. greater than 0 or list e.g. [1, 2, 5]
+  Boundary_layer.rad_type_to_make_wind: [bb]
+  Boundary_layer.rad_type_in_final_spectrum: [bb]
 file: setup.c
