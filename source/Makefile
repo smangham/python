@@ -69,36 +69,6 @@ endif
 GIT_DIFF_STATUS := $(shell expr `git status --porcelain 2>/dev/null| grep "^ M" | wc -l`)
 GIT_COMMIT_HASH := $(shell expr `git rev-parse HEAD`)
 
-<<<<<<< HEAD
-# Test if indent is installed. We use a different version on mac and linux.
-OS_TYPE := $(shell uname -s)
-ifeq ($(OS_TYPE), Darwin)
-	INDENT_PATH := $(shell which gnuindent)
-	INDENT_VERSION = $(shell gnuindent -version)
-else
-	INDENT_PATH := $(shell which indent)
-	INDENT_VERSION := $(shell indent -version)
-endif
-
-ifeq (, $(INDENT_PATH))
-	#If indent is not installed, error
-	INDENT_STRING = Gnuindent not installed so not indenting code
-	INDENT_CMD =
-else
-	ifeq (GNU,$(firstword $(INDENT_VERSION)))
-		INDENT_STRING = Indenting code with $(INDENT_VERSION)
-		# this command runs indent with GNU styling
-		INDENT_CMD = $(INDENT_PATH) -gnu -l140 -bli0 -nut *.c *.h
-	else
-		# if it is not GNU indent then do not run
-		INDENT_STRING = $(INDENT_PATH) is not the GNU version
-		INDENT_CMD =
-	endif
-endif
-=======
->>>>>>> upstream/master
-
-
 INCLUDE = ../include
 LIB = ../lib
 BIN = ../bin
@@ -107,20 +77,12 @@ ifeq (D,$(firstword $(MAKECMDGOALS)))
 # use pg when you want to use gprof the profiler
 # to use profiler make with arguments "make D python"
 # this can be altered to whatever is best
-<<<<<<< HEAD
-	CFLAGS = -g -pg -Wall $(EXTRA_FLAGS) -I$(INCLUDE) $(MPI_FLAG)
-=======
 	CFLAGS = -g -pg -Wall $(EXTRA_FLAGS) -I$(INCLUDE)  $(MPI_FLAG)
->>>>>>> upstream/master
 	FFLAGS = -g -pg
 	PRINT_VAR = DEBUGGING, -g -pg -Wall flags
 else
 # Use this for large runs
-<<<<<<< HEAD
-	CFLAGS = -O3 -Wall $(EXTRA_FLAGS) -I$(INCLUDE) $(MPI_FLAG)
-=======
 	CFLAGS = -O3 -Wall $(EXTRA_FLAGS) -I$(INCLUDE)  $(MPI_FLAG)
->>>>>>> upstream/master
 	FFLAGS =
 	PRINT_VAR = LARGE RUNS, -03 -Wall flags
 endif
@@ -131,17 +93,9 @@ endif
 # LDFLAGS= -L$(LIB)  -lm -lkpar  -lgslcblas ../duma_2_5_3/libduma.a -lpthread
 # next line if you want to use kpar as a library, rather than as source below
 # LDFLAGS= -L$(LIB)  -lm -lkpar -lcfitsio -lgsl -lgslcblas
-<<<<<<< HEAD
-LDFLAGS= -L$(LIB) -lm -lgsl -lgslcblas
-
-#Note that version should be a single string without spaces.
-VERSION = 81a
-=======
 LDFLAGS+= -L$(LIB) -lm -lgsl -lgslcblas
 
 #Note that version should be a single string without spaces.
->>>>>>> upstream/master
-
 VERSION = 84
 
 INDENT = yes
